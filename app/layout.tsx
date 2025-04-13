@@ -20,11 +20,16 @@ export const metadata: Metadata = {
   description:
     "Join our community dedicated to helping Muslims achieve pain-free Salah through healing and strengthening techniques.",
   generator: 'v0.dev',
-  icons: {
-    icon: '/m-modified.png',
-    shortcut: '/m-modified.png',
-    apple: '/m-modified.png',
-  }
+  icons: [
+    {
+      rel: 'icon',
+      url: '/m-modified.png',
+    },
+    {
+      rel: 'apple-touch-icon',
+      url: '/m-modified.png',
+    }
+  ]
 }
 
 export default function RootLayout({
