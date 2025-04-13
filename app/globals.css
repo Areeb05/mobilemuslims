@@ -35,9 +35,9 @@
     --radius: 0.5rem;
   }
 
-  .dark {
-    /* Deep Midnight Blue */
-    --background: 217 71% 11%;
+  .dark, html[data-theme="dark"] {
+    /* Deep Burgundy (4B0021) */
+    --background: 330 100% 15%;
     --foreground: 210 40% 98%;
 
     /* Rich Black for cards */
@@ -52,25 +52,40 @@
     --primary: 46 65% 52%;
     --primary-foreground: 0 0% 0%;
 
-    /* Darker Midnight Blue for secondary elements */
-    --secondary: 217 71% 8%;
+    /* Darker Burgundy for secondary elements */
+    --secondary: 330 100% 10%;
     --secondary-foreground: 210 40% 98%;
 
     /* Muted elements */
-    --muted: 217 71% 5%;
+    --muted: 330 100% 7%;
     --muted-foreground: 215 20.2% 75%;
 
-    /* Accent elements (slightly lighter midnight blue) */
-    --accent: 217 71% 15%;
+    /* Accent elements (slightly lighter burgundy) */
+    --accent: 330 100% 18%;
     --accent-foreground: 210 40% 98%;
 
     --destructive: 0 62.8% 30.6%;
     --destructive-foreground: 210 40% 98%;
 
-    /* Gold tinted borders */
-    --border: 46 65% 20%;
-    --input: 217 71% 15%;
-    --ring: 46 65% 52%;
+    /* Borders */
+    --border: 330 100% 15%;
+    --input: 330 100% 18%;
+    --ring: 330 100% 18%;
+  }
+
+  /* 
+   * We handle color-scheme through ThemeStyleFix component after hydration
+   * to avoid hydration mismatches between server and client
+   * The declaration below is still needed for proper CSS inheritance
+   */
+  @media (prefers-color-scheme: dark) {
+    :root {
+      color-scheme: dark;
+    }
+  }
+
+  html[data-theme="dark"] {
+    color-scheme: dark;
   }
 }
 
@@ -132,7 +147,7 @@
 /* Add custom utility classes for our specific colors */
 @layer utilities {
   .bg-midnight {
-    background-color: #0a192f;
+    background-color: #4B0021;
   }
 
   .bg-rich-black {
@@ -173,15 +188,6 @@
     transition-property: all;
     transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
     transition-duration: 300ms;
-  }
-
-  /* Gold glow effect */
-  .hover\:shadow-gold\/20:hover {
-    box-shadow: 0 0 15px 5px rgba(212, 175, 55, 0.2);
-  }
-
-  .hover\:shadow-gold\/10:hover {
-    box-shadow: 0 0 10px 2px rgba(212, 175, 55, 0.1);
   }
 }
 

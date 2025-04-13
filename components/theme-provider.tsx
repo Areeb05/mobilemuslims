@@ -7,5 +7,25 @@ import {
 } from 'next-themes'
 
 export function ThemeProvider({ children, ...props }: ThemeProviderProps) {
-  return <NextThemesProvider {...props}>{children}</NextThemesProvider>
+  const [mounted, setMounted] = React.useState(false)
+
+  // Prevent hydration mismatch by rendering the children only after component is mounted
+  React.useEffect(() => {
+    setMounted(true)
+  }, [])
+
+  // Configure next-themes to avoid conflicts with our color-scheme handling
+  const customProps = {
+    ...props,
+    disableColorScheme: true, // Prevent next-themes from setting color-scheme
+    enableSystem: false,      // We're using a fixed dark theme
+    forcedTheme: "dark",      // Force dark theme
+    disableTransitionOnChange: true, // No transitions needed for theme changes
+  }
+  
+  return (
+    <NextThemesProvider {...customProps}>
+      {mounted ? children : null}
+    </NextThemesProvider>
+  )
 }

@@ -65,12 +65,11 @@ export default function Home() {
   }
 
   return (
-    <main className="flex min-h-screen flex-col items-center bg-[#0A192F] text-white">
+    <main className="flex min-h-screen flex-col items-center bg-[#4B0021] text-white">
       {/* Mobile Navigation */}
       <div className="fixed top-0 left-0 w-full z-50 bg-midnight/80 backdrop-blur-md md:hidden">
         <div className="flex justify-between items-center p-4">
           <div className="text-gold font-serif text-xl font-bold flex items-center">
-            <PrayingHands className="h-5 w-5 mr-2 text-gold" strokeWidth={1.5} />
             Mobile Muslims
           </div>
           <button onClick={() => setIsMenuOpen(!isMenuOpen)} className="text-gold p-2 focus:outline-none">
@@ -111,8 +110,10 @@ export default function Home() {
                 onClick={() => scrollToSection("cta")}
                 className="bg-gold hover:bg-gold/90 text-black font-bold w-full flex items-center justify-center"
               >
-                <Sun className="h-4 w-4 mr-2" strokeWidth={1.5} />
-                Join Now
+                <a href="https://buy.stripe.com/eVa4iT2qm3Bt7yU28b">
+                  <Sun className="h-4 w-4 mr-2" strokeWidth={1.5} />
+                  Join Now
+                </a>
               </Button>
             </div>
           </motion.div>
@@ -123,7 +124,6 @@ export default function Home() {
       <div className="fixed top-0 left-0 w-full z-50 bg-midnight/80 backdrop-blur-md hidden md:block">
         <div className="container mx-auto flex justify-between items-center py-4 px-6">
           <div className="text-gold font-serif text-2xl font-bold flex items-center">
-            <PrayingHands className="h-6 w-6 mr-3 text-gold" strokeWidth={1.5} />
             Mobile Muslims
           </div>
           <div className="flex items-center space-x-8">
@@ -152,8 +152,10 @@ export default function Home() {
               onClick={() => scrollToSection("cta")}
               className="bg-gold hover:bg-gold/90 text-black font-bold flex items-center"
             >
-              <Sun className="h-4 w-4 mr-2" strokeWidth={1.5} />
-              Join Now
+              <a href="https://buy.stripe.com/eVa4iT2qm3Bt7yU28b">
+                <Sun className="h-4 w-4 mr-2" strokeWidth={1.5} />
+                Join Now
+              </a>
             </Button>
           </div>
         </div>
@@ -162,7 +164,10 @@ export default function Home() {
       {/* Enhanced Hero Section */}
       <section
         id="hero"
-        ref={(el) => (sectionsRef.current.hero = el)}
+        ref={(el) => {
+          sectionsRef.current.hero = el;
+          return undefined;
+        }}
         className="relative flex min-h-screen w-full flex-col items-center justify-center px-4 text-center pt-16 md:pt-0"
       >
         {/* Background Image with Overlay */}
@@ -175,7 +180,7 @@ export default function Home() {
             priority
             quality={100}
           />
-          <div className="absolute inset-0 bg-gradient-to-b from-[#0A192F]/80 via-[#0A192F]/70 to-[#0A192F]/90" />
+          <div className="absolute inset-0 bg-gradient-to-b from-[#4B0021]/80 via-[#4B0021]/70 to-[#4B0021]/90" />
         </div>
 
         <div className="z-10 max-w-5xl px-4 sm:px-6 lg:px-8 mt-16 md:mt-0">
@@ -199,7 +204,7 @@ export default function Home() {
             className="mb-8 md:mb-12"
           >
             <p className="text-base sm:text-lg md:text-xl lg:text-2xl tracking-wide leading-relaxed max-w-3xl mx-auto text-white/90">
-              Heal your body, strengthen your spirit, and stand in prayer pain-free
+              Experience shifa for your body, strengthen your spirit, and stand in prayer pain-free
             </p>
           </motion.div>
 
@@ -214,7 +219,7 @@ export default function Home() {
               asChild
               className="bg-gold hover:bg-gold/90 text-black font-bold text-base sm:text-lg md:text-xl px-6 sm:px-8 md:px-10 py-5 sm:py-6 md:py-7 rounded-md shadow-lg transform transition-all duration-300 hover:scale-105 hover:shadow-xl hover:shadow-gold/20 uppercase tracking-wider flex items-center"
             >
-              <Link href="https://buy.stripe.com/test_placeholder">
+              <Link href="https://buy.stripe.com/eVa4iT2qm3Bt7yU28b">
                 <Sun className="h-5 w-5 mr-2" strokeWidth={1.5} />
                 Join Now
               </Link>
@@ -242,7 +247,10 @@ export default function Home() {
       {/* Community Section with Enhanced Animations */}
       <section
         id="community"
-        ref={(el) => (sectionsRef.current.community = el)}
+        ref={(el) => {
+          sectionsRef.current.community = el;
+          return undefined;
+        }}
         className="relative flex min-h-screen w-full flex-col items-center justify-center bg-rich-black px-4 py-16 md:py-20 text-center overflow-hidden"
       >
         {/* Background Pattern */}
@@ -274,7 +282,7 @@ export default function Home() {
             transition={{ duration: 0.8 }}
             className="mb-8 md:mb-10 text-base sm:text-lg md:text-xl leading-relaxed tracking-wide max-w-3xl mx-auto"
           >
-            Become part of an active community dedicated to pain-free Salah. For just $50/month, gain access to
+            Become part of an active community dedicated to pain-free Salah. For just $1/month, gain access to
             personalized guidance, exclusive resources, and ongoing support.
           </motion.p>
 
@@ -283,7 +291,7 @@ export default function Home() {
               asChild
               className="bg-gold hover:bg-gold/90 text-black font-bold text-base sm:text-lg px-6 sm:px-8 py-4 sm:py-6 rounded-md shadow-lg transform transition-all duration-300 hover:scale-105 hover:shadow-xl hover:shadow-gold/20 flex items-center mx-auto"
             >
-              <Link href="https://buy.stripe.com/test_placeholder">
+              <Link href="https://buy.stripe.com/eVa4iT2qm3Bt7yU28b">
                 <Sun className="h-5 w-5 mr-2" strokeWidth={1.5} />
                 Join Now
               </Link>
@@ -300,7 +308,7 @@ export default function Home() {
             <motion.div variants={fadeInLeft} transition={{ duration: 0.6 }}>
               <BenefitCard
                 icon={<Heart className="h-10 w-10 text-gold mb-4" strokeWidth={1} />}
-                title="Healing Techniques"
+                title="Shifa Techniques"
                 description="Learn specialized techniques to alleviate pain during prayer positions."
               />
             </motion.div>
@@ -325,7 +333,10 @@ export default function Home() {
       {/* Testimonials Section with Enhanced Animations */}
       <section
         id="testimonials"
-        ref={(el) => (sectionsRef.current.testimonials = el)}
+        ref={(el) => {
+          sectionsRef.current.testimonials = el;
+          return undefined;
+        }}
         className="w-full bg-midnight px-4 py-16 md:py-20 overflow-hidden"
       >
         <div className="mx-auto max-w-4xl">
@@ -359,7 +370,7 @@ export default function Home() {
               <TestimonialCard
                 image="/testimonial-1.jpg"
                 quote="After years of knee pain during Salah, the techniques I learned through Mobile Muslims have allowed me to pray comfortably again. Alhamdulillah!"
-                name="Ahmed K."
+                name="Ahmed A."
               />
             </motion.div>
             <motion.div
@@ -381,7 +392,10 @@ export default function Home() {
       {/* Final CTA Section with Enhanced Animations */}
       <section
         id="cta"
-        ref={(el) => (sectionsRef.current.cta = el)}
+        ref={(el) => {
+          sectionsRef.current.cta = el;
+          return undefined;
+        }}
         className="w-full bg-rich-black px-4 py-16 md:py-20 text-center overflow-hidden"
       >
         <motion.div
@@ -415,30 +429,11 @@ export default function Home() {
               asChild
               className="bg-gold hover:bg-gold/90 text-black font-bold text-base sm:text-lg px-6 sm:px-8 py-4 sm:py-6 rounded-md shadow-lg transform transition-all duration-300 hover:shadow-xl hover:shadow-gold/20 flex items-center mx-auto"
             >
-              <Link href="https://buy.stripe.com/test_placeholder">
+              <Link href="https://buy.stripe.com/eVa4iT2qm3Bt7yU28b">
                 <Sun className="h-5 w-5 mr-2" strokeWidth={1.5} />
-                Join Now for $50/month
+                Join Now for $1/month
               </Link>
             </Button>
-          </motion.div>
-
-          {/* Featured Image */}
-          <motion.div
-            variants={fadeInUp}
-            className="relative w-full h-64 sm:h-80 md:h-96 rounded-lg overflow-hidden shadow-xl"
-          >
-            <Image
-              src="/prayer-posture.jpg" // Replace with your actual image path
-              alt="Prayer posture guidance"
-              fill
-              className="object-cover object-center"
-            />
-            <div className="absolute inset-0 bg-gradient-to-t from-rich-black via-transparent to-transparent" />
-            <div className="absolute bottom-4 left-4 right-4 text-left">
-              <p className="text-gold font-serif text-lg md:text-xl font-semibold">
-                Expert guidance for pain-free prayer positions
-              </p>
-            </div>
           </motion.div>
         </motion.div>
       </section>
@@ -452,7 +447,6 @@ export default function Home() {
         className="w-full bg-midnight border-t border-gold/20 px-4 py-6 md:py-8 text-center"
       >
         <div className="flex justify-center items-center mb-4">
-          <PrayingHands className="h-6 w-6 text-gold mx-2" strokeWidth={1} />
           <Heart className="h-6 w-6 text-gold mx-2" strokeWidth={1} />
           <Activity className="h-6 w-6 text-gold mx-2" strokeWidth={1} />
         </div>
@@ -474,7 +468,7 @@ function BenefitCard({
   description: string
 }) {
   return (
-    <div className="rounded-lg border border-gold/20 bg-midnight p-5 sm:p-6 text-left shadow-lg transition-all duration-300 hover:transform hover:scale-105 hover:border-gold/40 hover:shadow-gold/10 group h-full">
+    <div className="rounded-lg border border-gold/20 bg-midnight p-5 sm:p-6 text-left shadow-lg transition-all duration-300 hover:transform hover:scale-105 hover:border-gold/40 group h-full">
       <div className="flex flex-col items-start">
         {icon}
         <h3 className="mb-3 sm:mb-4 font-serif text-lg sm:text-xl md:text-2xl font-semibold text-gold tracking-tight group-hover:text-gold/90 transition-colors duration-300">

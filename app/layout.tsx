@@ -3,6 +3,7 @@ import type { Metadata } from "next"
 import { Playfair_Display, Montserrat } from "next/font/google"
 import "./globals.css"
 import { ThemeProvider } from "@/components/theme-provider"
+import { ThemeStyleFix } from "@/components/theme-style-fix"
 
 const playfair = Playfair_Display({
   subsets: ["latin"],
@@ -18,7 +19,7 @@ export const metadata: Metadata = {
   title: "Mobile Muslims | Pain-Free Salah Community",
   description:
     "Join our community dedicated to helping Muslims achieve pain-free Salah through healing and strengthening techniques.",
-    generator: 'v0.dev'
+  generator: 'v0.dev'
 }
 
 export default function RootLayout({
@@ -27,16 +28,25 @@ export default function RootLayout({
   children: React.ReactNode
 }>) {
   return (
-    <html lang="en" className={`${playfair.variable} ${montserrat.variable} dark`}>
+    <html 
+      lang="en" 
+      className={`${playfair.variable} ${montserrat.variable}`} 
+      data-theme="dark"
+      suppressHydrationWarning
+    >
       <body className="min-h-screen bg-midnight font-sans antialiased">
-        <ThemeProvider attribute="class" defaultTheme="dark" enableSystem={false} disableTransitionOnChange>
+        <ThemeStyleFix />
+        <ThemeProvider 
+          attribute="data-theme"
+          defaultTheme="dark"
+          enableSystem={false}
+          forcedTheme="dark"
+          disableTransitionOnChange
+          storageKey="mobile-muslims-theme"
+        >
           {children}
         </ThemeProvider>
       </body>
     </html>
   )
 }
-
-
-
-import './globals.css'
