@@ -19,7 +19,12 @@ export const metadata: Metadata = {
   title: "Mobile Muslims | Pain-Free Salah Community",
   description:
     "Join our community dedicated to helping Muslims achieve pain-free Salah through healing and strengthening techniques.",
-  generator: 'v0.dev'
+  generator: 'v0.dev',
+  icons: {
+    icon: '/m-modified.png',
+    shortcut: '/m-modified.png',
+    apple: '/m-modified.png',
+  }
 }
 
 export default function RootLayout({
