@@ -14,13 +14,13 @@ localPort = 3000
 externalPort = 3000
 
 [[ports]]
-localPort = 33455
-externalPort = 3001
+localPort = 37077
+externalPort = 80
 exposeLocalhost = true
 
 [[ports]]
-localPort = 37077
-externalPort = 80
+localPort = 40651
+externalPort = 3003
 exposeLocalhost = true
 
 [[ports]]
