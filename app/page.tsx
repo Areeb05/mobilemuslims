@@ -120,7 +120,7 @@ export default function Home() {
                 Testimonials
               </button>
               <button
-                onClick={() => window.location.href = '/understandsalah'}
+                onClick={() => (window.location.href = "/understandsalah")}
                 className="text-left py-2 text-white hover:text-gold transition-colors flex items-center"
               >
                 <Moon className="h-4 w-4 mr-2 text-gold" strokeWidth={1.5} />
@@ -169,7 +169,7 @@ export default function Home() {
               Testimonials
             </button>
             <button
-              onClick={() => window.location.href = '/understandsalah'}
+              onClick={() => (window.location.href = "/understandsalah")}
               className="text-white hover:text-gold transition-colors flex items-center"
             >
               <Moon className="h-4 w-4 mr-2 text-gold/70" strokeWidth={1.5} />
@@ -306,7 +306,8 @@ export default function Home() {
             transition={{ duration: 0.8 }}
             className="mb-8 md:mb-10 text-base sm:text-lg md:text-xl leading-relaxed tracking-wide max-w-3xl mx-auto"
           >
-            Receive expert coaching, support, and specialized exercises to pray Salah Pain-Free.
+            Receive expert coaching, support, and specialized exercises to pray
+            Salah Pain-Free.
           </motion.p>
 
           <motion.div
@@ -458,7 +459,8 @@ export default function Home() {
             variants={fadeInUp}
             className="mb-8 md:mb-10 text-base sm:text-lg md:text-xl leading-relaxed tracking-wide max-w-3xl mx-auto"
           >
-            Stop wincing during Salah. Start praying pain-free with our coaching and community support.
+            Stop wincing during Salah. Start praying pain-free with our coaching
+            and community support.
           </motion.p>
 
           <motion.div
@@ -524,13 +526,7 @@ function BenefitCard({
   );
 }
 
-function TestimonialCard({
-  quote,
-  name,
-}: {
-  quote: string;
-  name: string;
-}) {
+function TestimonialCard({ quote, name }: { quote: string; name: string }) {
   return (
     <div className="rounded-lg border border-gold/20 bg-rich-black p-5 sm:p-6 text-left shadow-lg transition-all duration-300 hover:border-gold/40 hover:shadow-gold/10 hover:transform hover:scale-[1.02] h-full">
       <p className="mb-4 sm:mb-6 italic text-gray-300 text-sm sm:text-base md:text-lg leading-relaxed tracking-wide">
