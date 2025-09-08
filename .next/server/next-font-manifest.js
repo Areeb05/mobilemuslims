@@ -1,1 +1,1 @@
-self.__NEXT_FONT_MANIFEST="{\"pages\":{},\"app\":{\"/home/runner/workspace/app/layout\":[\"static/media/4f05ba3a6752a328-s.p.woff2\",\"static/media/dcc209c0b1ab30af-s.p.woff2\"]},\"appUsingSizeAdjust\":true,\"pagesUsingSizeAdjust\":false}"
+self.__NEXT_FONT_MANIFEST="{\"pages\":{},\"app\":{\"/home/runner/workspace/app/layout\":[\"static/media/904be59b21bd51cb-s.p.woff2\",\"static/media/6af6b543dd3be231-s.p.woff2\"]},\"appUsingSizeAdjust\":true,\"pagesUsingSizeAdjust\":false}"

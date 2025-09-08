@@ -14,8 +14,18 @@ localPort = 3000
 externalPort = 3000
 
 [[ports]]
+localPort = 36249
+externalPort = 6000
+exposeLocalhost = true
+
+[[ports]]
 localPort = 37077
 externalPort = 80
+exposeLocalhost = true
+
+[[ports]]
+localPort = 37683
+externalPort = 4200
 exposeLocalhost = true
 
 [[ports]]
@@ -24,6 +34,47 @@ externalPort = 3003
 exposeLocalhost = true
 
 [[ports]]
+localPort = 42123
+externalPort = 5173
+exposeLocalhost = true
+
+[[ports]]
 localPort = 43839
 externalPort = 3002
 exposeLocalhost = true
+
+[[ports]]
+localPort = 43865
+externalPort = 3001
+exposeLocalhost = true
+
+[[ports]]
+localPort = 5000
+externalPort = 80
+
+[agent]
+expertMode = true
+
+[workflows]
+runButton = "Project"
+
+[[workflows.workflow]]
+name = "Project"
+mode = "parallel"
+author = "agent"
+
+[[workflows.workflow.tasks]]
+task = "workflow.run"
+args = "Next.js Server"
+
+[[workflows.workflow]]
+name = "Next.js Server"
+author = "agent"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "npm run dev"
+waitForPort = 5000
+
+[workflows.workflow.metadata]
+outputType = "webview"

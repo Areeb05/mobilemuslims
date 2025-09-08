@@ -1,6 +1,6 @@
 "use client";
 
-import type React from "react";
+import React from "react";
 
 import { useState, useEffect, useRef } from "react";
 import Image from "next/image";
@@ -216,7 +216,7 @@ export default function Home() {
             className="mb-6 md:mb-8"
           >
             <h1 className="font-serif text-4xl sm:text-5xl md:text-6xl lg:text-7xl xl:text-8xl font-bold text-gold tracking-tight leading-none text-shadow-lg font-elegant">
-              Reclaim the Full Blessings of Salah
+              Pray Salah Pain-Free
             </h1>
           </motion.div>
 
@@ -228,8 +228,7 @@ export default function Home() {
             className="mb-8 md:mb-12"
           >
             <p className="text-base sm:text-lg md:text-xl lg:text-2xl tracking-wide leading-relaxed max-w-3xl mx-auto text-white/90">
-              Experience shifa for your body, strengthen your spirit, and stand
-              in prayer pain-free
+              Stop letting physical discomfort hold you back from your salah.
             </p>
           </motion.div>
 
@@ -307,9 +306,7 @@ export default function Home() {
             transition={{ duration: 0.8 }}
             className="mb-8 md:mb-10 text-base sm:text-lg md:text-xl leading-relaxed tracking-wide max-w-3xl mx-auto"
           >
-            Become part of an active community dedicated to pain-free Salah. For
-            just $1/month, gain access to personalized guidance, exclusive
-            resources, and ongoing support.
+            Receive expert coaching, support, and specialized exercises to pray Salah Pain-Free.
           </motion.p>
 
           <motion.div
@@ -340,7 +337,7 @@ export default function Home() {
                 icon={
                   <Heart className="h-10 w-10 text-gold mb-4" strokeWidth={1} />
                 }
-                title="Shifa Techniques"
+                title="Exercise Techniques"
                 description="Learn specialized techniques to alleviate pain during prayer positions."
               />
             </motion.div>
@@ -411,8 +408,7 @@ export default function Home() {
               viewport={{ once: true, margin: "-100px" }}
             >
               <TestimonialCard
-                image="/testimonial-1.jpg"
-                quote="After years of knee pain during Salah, the techniques I learned through Mobile Muslims have allowed me to pray comfortably again. Alhamdulillah!"
+                quote="After years of knee pain during Salah, the exercises I learned have allowed me to pray comfortably again. Alhamdulillah!"
                 name="Ahmed A."
               />
             </motion.div>
@@ -423,7 +419,6 @@ export default function Home() {
               viewport={{ once: true, margin: "-100px" }}
             >
               <TestimonialCard
-                image="/testimonial-2.jpg"
                 quote="The community support and specialized exercises have strengthened my back. I can now complete all five daily prayers without discomfort."
                 name="Fatima S."
               />
@@ -463,8 +458,7 @@ export default function Home() {
             variants={fadeInUp}
             className="mb-8 md:mb-10 text-base sm:text-lg md:text-xl leading-relaxed tracking-wide max-w-3xl mx-auto"
           >
-            Join a community dedicated to pain-free prayer and experience the
-            full spiritual benefits of Salah without physical limitations.
+            Stop wincing during Salah. Start praying pain-free with our coaching and community support.
           </motion.p>
 
           <motion.div
@@ -479,7 +473,7 @@ export default function Home() {
             >
               <Link href="https://buy.stripe.com/eVa4iT2qm3Bt7yU28b">
                 <Sun className="h-5 w-5 mr-2" strokeWidth={1.5} />
-                Join Now for $1/month
+                Join Now for $49.50/month
               </Link>
             </Button>
           </motion.div>
@@ -531,26 +525,14 @@ function BenefitCard({
 }
 
 function TestimonialCard({
-  image,
   quote,
   name,
 }: {
-  image?: string;
   quote: string;
   name: string;
 }) {
   return (
     <div className="rounded-lg border border-gold/20 bg-rich-black p-5 sm:p-6 text-left shadow-lg transition-all duration-300 hover:border-gold/40 hover:shadow-gold/10 hover:transform hover:scale-[1.02] h-full">
-      {image && (
-        <div className="relative w-16 h-16 mb-4 rounded-full overflow-hidden border-2 border-gold/30">
-          <Image
-            src={image || "/placeholder.svg"}
-            alt={`${name}'s profile`}
-            fill
-            className="object-cover"
-          />
-        </div>
-      )}
       <p className="mb-4 sm:mb-6 italic text-gray-300 text-sm sm:text-base md:text-lg leading-relaxed tracking-wide">
         "{quote}"
       </p>
