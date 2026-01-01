@@ -29,24 +29,51 @@ let hasCredentials = false;
 
 // Debug: Log environment variable availability
 console.log('🔍 Checking for Google Cloud credentials...');
-console.log('GOOGLE_CREDENTIALS_JSON exists:', !!process.env.GOOGLE_CREDENTIALS_JSON);
 console.log('NODE_ENV:', process.env.NODE_ENV);
+
+// Check multiple possible environment variable names that Railway might use
+const possibleEnvVarNames = [
+  'GOOGLE_CREDENTIALS_JSON',
+  'GOOGLE_CREDENTIALS',
+  'GOOGLE_APPLICATION_CREDENTIALS',
+  'CREDENTIALS_JSON',
+  'GCLOUD_CREDENTIALS'
+];
+
+let foundEnvVar = null;
+let envVarValue = null;
+
+for (const envVarName of possibleEnvVarNames) {
+  if (process.env[envVarName]) {
+    foundEnvVar = envVarName;
+    envVarValue = process.env[envVarName];
+    console.log(`✅ Found credentials in: ${envVarName}`);
+    break;
+  }
+}
+
 console.log('Available env vars starting with GOOGLE:', Object.keys(process.env).filter(key => key.startsWith('GOOGLE')));
+console.log('All environment variables:', Object.keys(process.env));
 
 try {
-  if (process.env.GOOGLE_CREDENTIALS_JSON) {
-    console.log('📄 Attempting to parse GOOGLE_CREDENTIALS_JSON...');
-    credentials = JSON.parse(process.env.GOOGLE_CREDENTIALS_JSON);
+  if (envVarValue) {
+    console.log(`📄 Attempting to parse credentials from ${foundEnvVar}...`);
+    console.log('Raw value starts with:', envVarValue.substring(0, 50) + '...');
+
+    credentials = JSON.parse(envVarValue);
     hasCredentials = true;
     console.log('✅ Google Cloud credentials loaded successfully from Railway.');
+    console.log('Service account email:', credentials.client_email);
   } else {
-    console.warn('❌ No GOOGLE_CREDENTIALS_JSON found in environment variables.');
-    console.warn('Available environment variables:', Object.keys(process.env));
+    console.warn('❌ No Google Cloud credentials found in any expected environment variable.');
+    console.warn('Checked variables:', possibleEnvVarNames.join(', '));
+    console.warn('All environment variables:', Object.keys(process.env).filter(key => key.includes('CRED') || key.includes('GOOGLE')));
     console.warn('Running in demo mode.');
   }
 } catch (error) {
   console.error('❌ Failed to parse Google Cloud credentials:', error.message);
-  console.error('Raw GOOGLE_CREDENTIALS_JSON value (first 100 chars):', process.env.GOOGLE_CREDENTIALS_JSON?.substring(0, 100));
+  console.error('Found in variable:', foundEnvVar);
+  console.error('Raw value (first 200 chars):', envVarValue?.substring(0, 200));
   console.warn('Running in demo mode without Google Cloud services.');
 }
 
