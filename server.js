@@ -4,6 +4,13 @@ const next = require('next');
 const { SpeechClient } = require('@google-cloud/speech');
 const { Translate } = require('@google-cloud/translate').v2;
 
+// Load environment variables from .env.local (for local development)
+// Railway injects environment variables directly, so this is a no-op in production
+if (process.env.NODE_ENV !== 'production') {
+  const dotenv = require('dotenv');
+  dotenv.config({ path: '.env.local' });
+}
+
 const dev = process.env.NODE_ENV !== 'production';
 const app = next({ dev });
 const handle = app.getRequestHandler();

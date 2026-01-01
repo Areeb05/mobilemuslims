@@ -1,6 +1,1 @@
-{
-  "/api/stream/route": "app/api/stream/route.js",
-  "/_not-found/page": "app/_not-found/page.js",
-  "/page": "app/page.js",
-  "/understandsalah/page": "app/understandsalah/page.js"
-}
+{}

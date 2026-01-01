@@ -22,6 +22,7 @@
     "autoprefixer": "^10.4.20",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
+    "dotenv": "17.2.3",
     "framer-motion": "latest",
     "http": "0.0.1-security",
     "lucide-react": "^0.454.0",
