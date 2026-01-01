@@ -15,19 +15,30 @@ const dev = process.env.NODE_ENV !== 'production';
 const app = next({ dev });
 const handle = app.getRequestHandler();
 
-// Handle Google Cloud credentials from Replit secrets
+// Handle Google Cloud credentials from Railway environment variables
 let credentials = {};
 let hasCredentials = false;
+
+// Debug: Log environment variable availability
+console.log('🔍 Checking for Google Cloud credentials...');
+console.log('GOOGLE_CREDENTIALS_JSON exists:', !!process.env.GOOGLE_CREDENTIALS_JSON);
+console.log('NODE_ENV:', process.env.NODE_ENV);
+console.log('Available env vars starting with GOOGLE:', Object.keys(process.env).filter(key => key.startsWith('GOOGLE')));
+
 try {
   if (process.env.GOOGLE_CREDENTIALS_JSON) {
+    console.log('📄 Attempting to parse GOOGLE_CREDENTIALS_JSON...');
     credentials = JSON.parse(process.env.GOOGLE_CREDENTIALS_JSON);
     hasCredentials = true;
-    console.log('Google Cloud credentials loaded from Replit secrets.');
+    console.log('✅ Google Cloud credentials loaded successfully from Railway.');
   } else {
-    console.warn('No Google Cloud credentials found in environment variables. Running in demo mode.');
+    console.warn('❌ No GOOGLE_CREDENTIALS_JSON found in environment variables.');
+    console.warn('Available environment variables:', Object.keys(process.env));
+    console.warn('Running in demo mode.');
   }
 } catch (error) {
-  console.error('Failed to parse Google Cloud credentials:', error);
+  console.error('❌ Failed to parse Google Cloud credentials:', error.message);
+  console.error('Raw GOOGLE_CREDENTIALS_JSON value (first 100 chars):', process.env.GOOGLE_CREDENTIALS_JSON?.substring(0, 100));
   console.warn('Running in demo mode without Google Cloud services.');
 }
 
