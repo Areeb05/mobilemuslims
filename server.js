@@ -1,3 +1,8 @@
+console.log('🚀 Starting Understand Salah server...');
+console.log('Current directory:', process.cwd());
+console.log('Node version:', process.version);
+console.log('Platform:', process.platform);
+
 const { createServer } = require('http');
 const { Server } = require('socket.io');
 const next = require('next');
@@ -9,6 +14,9 @@ const { Translate } = require('@google-cloud/translate').v2;
 if (process.env.NODE_ENV !== 'production') {
   const dotenv = require('dotenv');
   dotenv.config({ path: '.env.local' });
+  console.log('📄 Loaded .env.local for development');
+} else {
+  console.log('🏭 Running in production mode - using Railway environment variables');
 }
 
 const dev = process.env.NODE_ENV !== 'production';
