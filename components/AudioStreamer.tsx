@@ -3,7 +3,7 @@
 import { useEffect, useState, useRef } from 'react';
 import { io, Socket } from 'socket.io-client';
 import { Button } from '@/components/ui/button';
-import { Mic, Square, Maximize2, Minimize } from 'lucide-react';
+import { Mic, Square, Volume2 } from 'lucide-react';
 
 interface AudioStreamerProps {
   endpoint?: string;
@@ -14,15 +14,21 @@ export function AudioStreamer({ endpoint = '/api/stream' }: AudioStreamerProps) 
   const [transcription, setTranscription] = useState('');
   const [translation, setTranslation] = useState('');
   const [error, setError] = useState('');
-  const [isTranscriptionFullscreen, setIsTranscriptionFullscreen] = useState(false);
-  const [isTranslationFullscreen, setIsTranslationFullscreen] = useState(false);
+  const [connectionStatus, setConnectionStatus] = useState<'connecting' | 'connected' | 'disconnected'>('connecting');
+
   const socketRef = useRef<Socket | null>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioContextRef = useRef<AudioContext | null>(null);
   const processorNodeRef = useRef<ScriptProcessorNode | null>(null);
   const sourceNodeRef = useRef<MediaStreamAudioSourceNode | null>(null);
-  const transcriptionRef = useRef<HTMLDivElement | null>(null);
-  const translationRef = useRef<HTMLDivElement | null>(null);
+  const scrollRef = useRef<HTMLDivElement | null>(null);
+
+  // Auto-scroll to bottom when new text arrives
+  useEffect(() => {
+    if (scrollRef.current) {
+      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+    }
+  }, [transcription, translation]);
 
   useEffect(() => {
     // Initialize Socket.IO connection with dynamic URL for deployment
@@ -36,11 +42,13 @@ export function AudioStreamer({ endpoint = '/api/stream' }: AudioStreamerProps) 
     socketRef.current.on('connect', () => {
       console.log('Connected to Socket.IO server at:', socketUrl);
       setError('');
+      setConnectionStatus('connected');
     });
 
     socketRef.current.on('connect_error', (err) => {
       console.error('Socket.IO connection error:', err.message);
       setError('Connection failed: ' + err.message);
+      setConnectionStatus('disconnected');
     });
 
     socketRef.current.on('transcription', (data: string) => {
@@ -53,11 +61,13 @@ export function AudioStreamer({ endpoint = '/api/stream' }: AudioStreamerProps) 
 
     socketRef.current.on('error', (err: string) => {
       setError(err);
+      setConnectionStatus('disconnected');
     });
 
     socketRef.current.on('disconnect', (reason) => {
       console.log('Disconnected from Socket.IO server. Reason:', reason);
       setError('Disconnected from server: ' + reason);
+      setConnectionStatus('disconnected');
       stopRecording();
     });
 
@@ -66,14 +76,20 @@ export function AudioStreamer({ endpoint = '/api/stream' }: AudioStreamerProps) 
         socketRef.current.disconnect();
       }
       stopRecording();
-      exitFullscreen();
     };
   }, [endpoint]);
 
   const startRecording = async () => {
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const stream = await navigator.mediaDevices.getUserMedia({
+        audio: {
+          echoCancellation: true,
+          noiseSuppression: true,
+          sampleRate: 16000
+        }
+      });
       setIsRecording(true);
+      setError('');
 
       // Use Web Audio API for audio processing with downsampling
       audioContextRef.current = new (window.AudioContext || (window as any).webkitAudioContext)({ sampleRate: 16000 });
@@ -133,90 +149,105 @@ export function AudioStreamer({ endpoint = '/api/stream' }: AudioStreamerProps) 
     }
   };
 
-  const toggleFullscreen = (section: 'transcription' | 'translation') => {
-    if (section === 'transcription') {
-      setIsTranscriptionFullscreen(!isTranscriptionFullscreen);
-      if (!isTranscriptionFullscreen && transcriptionRef.current) {
-        transcriptionRef.current.requestFullscreen().catch(err => {
-          console.error('Error attempting to enable fullscreen:', err);
-          setError('Failed to enter fullscreen mode: ' + err.message);
-        });
-      } else {
-        if (document.fullscreenElement) {
-          document.exitFullscreen();
-        }
-        setIsTranscriptionFullscreen(false);
-      }
-    } else {
-      setIsTranslationFullscreen(!isTranslationFullscreen);
-      if (!isTranslationFullscreen && translationRef.current) {
-        translationRef.current.requestFullscreen().catch(err => {
-          console.error('Error attempting to enable fullscreen:', err);
-          setError('Failed to enter fullscreen mode: ' + err.message);
-        });
-      } else {
-        if (document.fullscreenElement) {
-          document.exitFullscreen();
-        }
-        setIsTranslationFullscreen(false);
-      }
+  const getStatusColor = () => {
+    switch (connectionStatus) {
+      case 'connected': return 'text-green-400';
+      case 'connecting': return 'text-yellow-400';
+      case 'disconnected': return 'text-red-400';
     }
   };
 
-  const exitFullscreen = () => {
-    if (document.fullscreenElement) {
-      document.exitFullscreen();
+  const getStatusText = () => {
+    switch (connectionStatus) {
+      case 'connected': return 'Connected';
+      case 'connecting': return 'Connecting...';
+      case 'disconnected': return 'Disconnected';
     }
-    setIsTranscriptionFullscreen(false);
-    setIsTranslationFullscreen(false);
   };
 
   return (
-    <div className="flex flex-col gap-4 p-6 max-w-2xl mx-auto">
-      <Button
-        onClick={toggleRecording}
-        className="flex items-center justify-center gap-2"
-        variant={isRecording ? 'destructive' : 'default'}
-      >
-        {isRecording ? <Square className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
-        {isRecording ? 'Stop Recording' : 'Start Recording'}
-      </Button>
+    <div className="flex flex-col gap-6">
+      {/* Connection Status */}
+      <div className="flex items-center justify-center gap-2">
+        <div className={`w-2 h-2 rounded-full ${
+          connectionStatus === 'connected' ? 'bg-green-400' :
+          connectionStatus === 'connecting' ? 'bg-yellow-400' : 'bg-red-400'
+        }`}></div>
+        <span className={`text-sm ${getStatusColor()}`}>{getStatusText()}</span>
+      </div>
 
+      {/* Control Button */}
+      <div className="flex justify-center">
+        <Button
+          onClick={toggleRecording}
+          className={`flex items-center justify-center gap-3 px-8 py-4 text-lg font-semibold rounded-full transition-all duration-300 ${
+            isRecording
+              ? 'bg-red-600 hover:bg-red-700 text-white shadow-lg shadow-red-500/25'
+              : 'bg-gold hover:bg-gold/90 text-black shadow-lg shadow-gold/25'
+          }`}
+          disabled={connectionStatus !== 'connected'}
+        >
+          {isRecording ? (
+            <>
+              <Square className="h-6 w-6" />
+              Stop Recording
+            </>
+          ) : (
+            <>
+              <Mic className="h-6 w-6" />
+              Start Recording
+            </>
+          )}
+        </Button>
+      </div>
+
+      {/* Error Display */}
       {error && (
-        <div className="text-red-500 text-sm mt-2">Error: {error}</div>
+        <div className="text-red-400 text-sm text-center bg-red-900/20 p-3 rounded-lg">
+          Error: {error}
+        </div>
       )}
 
-      <div className="mt-4 space-y-4">
-        <div ref={transcriptionRef} className={`bg-gray-50 p-4 rounded-md shadow-sm ${isTranscriptionFullscreen ? 'fixed inset-0 bg-gray-50 flex flex-col z-50' : ''}`}>
-          <div className="flex justify-between items-center mb-2">
-            <h3 className="text-lg font-medium text-gray-700">Transcription (Arabic)</h3>
-            <Button 
-              variant="ghost" 
-              size="sm" 
-              onClick={() => toggleFullscreen('transcription')} 
-              className="p-1 h-8"
-            >
-              {isTranscriptionFullscreen ? <Minimize className="h-4 w-4 text-gray-700" /> : <Maximize2 className="h-4 w-4 text-gray-700" />}
-            </Button>
+      {/* Transcription Display */}
+      <div className="space-y-4">
+        {/* Arabic Transcription */}
+        <div className="bg-gray-900/50 border border-gray-700/50 rounded-lg p-4">
+          <div className="flex items-center gap-2 mb-3">
+            <Mic className="h-5 w-5 text-gold" />
+            <h3 className="text-lg font-semibold text-gold">Arabic Transcription</h3>
           </div>
-          <p className={`text-base text-gray-900 mt-2 whitespace-pre-wrap ${isTranscriptionFullscreen ? 'text-2xl overflow-auto p-4 flex-1' : ''}`}>{transcription || 'Waiting for speech...'}</p>
+          <div
+            ref={scrollRef}
+            className="h-32 overflow-y-auto scrollbar-thin scrollbar-thumb-gold/30 scrollbar-track-gray-800/30"
+          >
+            <p className="text-white text-lg leading-relaxed text-right font-arabic whitespace-pre-wrap" dir="rtl">
+              {transcription || 'Waiting for speech...'}
+            </p>
+          </div>
         </div>
 
-        <div ref={translationRef} className={`bg-blue-50 p-4 rounded-md shadow-sm ${isTranslationFullscreen ? 'fixed inset-0 bg-blue-50 flex flex-col z-50' : ''}`}>
-          <div className="flex justify-between items-center mb-2">
-            <h3 className="text-lg font-medium text-blue-700">Translation (English)</h3>
-            <Button 
-              variant="ghost" 
-              size="sm" 
-              onClick={() => toggleFullscreen('translation')} 
-              className="p-1 h-8"
-            >
-              {isTranslationFullscreen ? <Minimize className="h-4 w-4 text-blue-700" /> : <Maximize2 className="h-4 w-4 text-blue-700" />}
-            </Button>
+        {/* English Translation */}
+        <div className="bg-blue-900/20 border border-blue-700/30 rounded-lg p-4">
+          <div className="flex items-center gap-2 mb-3">
+            <Volume2 className="h-5 w-5 text-blue-400" />
+            <h3 className="text-lg font-semibold text-blue-400">English Translation</h3>
           </div>
-          <p className={`text-base text-blue-900 mt-2 whitespace-pre-wrap ${isTranslationFullscreen ? 'text-2xl overflow-auto p-4 flex-1' : ''}`}>{translation || 'Waiting for translation...'}</p>
+          <div
+            ref={scrollRef}
+            className="h-32 overflow-y-auto scrollbar-thin scrollbar-thumb-blue-400/30 scrollbar-track-blue-900/30"
+          >
+            <p className="text-white text-lg leading-relaxed whitespace-pre-wrap">
+              {translation || 'Translation will appear here...'}
+            </p>
+          </div>
         </div>
+      </div>
+
+      {/* Instructions */}
+      <div className="text-center text-gray-400 text-sm space-y-1">
+        <p>Click "Start Recording" and speak clearly in Arabic</p>
+        <p>Text will stream in real-time with automatic translation</p>
       </div>
     </div>
   );
-} 
+}
