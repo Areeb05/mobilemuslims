@@ -1,47 +1,24 @@
 {
-  "name": "understandsalah",
+  "name": "mobilemuslims",
   "version": "0.1.0",
   "private": true,
   "engines": {
     "node": ">=18.17.0"
   },
   "packageManager": "npm@10.5.0",
+  "workspaces": [
+    "client",
+    "server"
+  ],
   "scripts": {
-    "dev": "node server.js",
-    "build": "next build",
-    "start": "NODE_ENV=production node server.js",
-    "lint": "next lint"
-  },
-  "dependencies": {
-    "@google-cloud/speech": "7.0.1",
-    "@google-cloud/translate": "9.0.1",
-    "@radix-ui/react-label": "^2.1.1",
-    "@radix-ui/react-select": "^2.1.4",
-    "@radix-ui/react-separator": "^1.1.1",
-    "@radix-ui/react-slot": "^1.1.1",
-    "autoprefixer": "^10.4.20",
-    "class-variance-authority": "^0.7.1",
-    "clsx": "^2.1.1",
-    "dotenv": "17.2.3",
-    "framer-motion": "latest",
-    "http": "0.0.1-security",
-    "lucide-react": "^0.454.0",
-    "next": "15.5.9",
-    "react": "^19",
-    "react-dom": "^19",
-    "socket.io": "4.8.1",
-    "socket.io-client": "4.8.1",
-    "tailwind-merge": "^2.5.5",
-    "tailwindcss-animate": "^1.0.7",
-    "ws": "8.18.2"
+    "dev": "concurrently \"npm run dev --workspace=client\" \"npm run dev --workspace=server\"",
+    "build": "npm run build --workspace=client && npm run build --workspace=server",
+    "start": "npm run start --workspace=server",
+    "install:all": "npm install",
+    "clean": "rm -rf client/node_modules server/node_modules node_modules client/dist server/dist",
+    "lint": "npm run lint --workspace=client && npm run lint --workspace=server"
   },
   "devDependencies": {
-    "@types/node": "^22",
-    "@types/react": "^19",
-    "@types/react-dom": "^19",
-    "@types/ws": "8.18.1",
-    "postcss": "^8",
-    "tailwindcss": "^3.4.17",
-    "typescript": "^5"
+    "concurrently": "^8.2.2"
   }
 }
