@@ -1,4 +1,3 @@
-import React from 'react'
 import AudioStreamer from '../components/AudioStreamer'
 
 export default function UnderstandSalah() {

@@ -1,6 +1,5 @@
 import { useEffect, useState, useRef } from 'react'
 import { io, Socket } from 'socket.io-client'
-import { Button } from './ui/button'
 import { Mic, Square, Volume2 } from 'lucide-react'
 
 interface AudioStreamerProps {

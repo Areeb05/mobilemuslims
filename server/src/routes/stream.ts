@@ -1,5 +1,3 @@
-import type { Server as WSServerType } from 'ws'
-const ws = require('ws')
 import { SpeechClient } from '@google-cloud/speech'
 import { v2 as cloudTranslate } from '@google-cloud/translate'
 import type { Server, Socket } from 'socket.io'

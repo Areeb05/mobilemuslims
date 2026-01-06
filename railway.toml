@@ -1,0 +1,20 @@
+[build]
+builder = "NIXPACKS"
+buildCommand = "npm run build"
+
+[build.env]
+NODE_ENV = "production"
+
+[deploy]
+startCommand = "cd server && npm run start"
+healthcheckPath = "/api/health"
+healthcheckTimeout = 300
+restartPolicyType = "ON_FAILURE"
+restartPolicyMaxRetries = 10
+
+[environments.production]
+NODE_ENV = "production"
+CLIENT_URL = "${{RAILWAY_STATIC_URL}}"
+
+# Google Cloud credentials should be set in Railway dashboard
+# GOOGLE_CREDENTIALS_JSON = "your-json-here"
