@@ -28,7 +28,15 @@ app.use(helmet())
 app.use(cors())
 app.use(express.json())
 
-// API Routes (must be registered BEFORE static files and catch-all)
+// Serve static files from client build (for production)
+if (process.env.NODE_ENV === 'production') {
+  app.use(express.static(path.join(__dirname, '../../client/dist')))
+  app.get('*', (_req, res) => {
+    res.sendFile(path.join(__dirname, '../../client/dist/index.html'))
+  })
+}
+
+// API Routes
 app.get('/api/health', (_req, res) => {
   res.json({
     status: 'ok',
@@ -44,18 +52,6 @@ app.use('/api/donations', donationRoutes)
 // Import and setup WebSocket handlers
 import { setupSocketHandlers } from './routes/stream.js'
 setupSocketHandlers(io)
-
-// Serve static files from client build (for production)
-// This must come AFTER API routes
-if (process.env.NODE_ENV === 'production') {
-  const clientDistPath = path.join(__dirname, '../../client/dist')
-  app.use(express.static(clientDistPath))
-  
-  // SPA catch-all - must be LAST
-  app.get('*', (_req, res) => {
-    res.sendFile(path.join(clientDistPath, 'index.html'))
-  })
-}
 
 const PORT = process.env.PORT || 3001
 server.listen(PORT, () => {
