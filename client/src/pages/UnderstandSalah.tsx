@@ -2,27 +2,27 @@ import AudioStreamer from '../components/AudioStreamer'
 
 export default function UnderstandSalah() {
   return (
-    <div className="min-h-screen bg-gradient-to-br from-[#4B0021] to-[#2B0014] text-white p-4 md:p-6">
-      <div className="container mx-auto max-w-4xl">
-        {/* Header */}
-        <div className="text-center mb-8">
-          <h1 className="text-4xl md:text-5xl font-serif font-bold text-gold mb-4">
+    <div className="min-h-screen bg-black text-white grid place-items-center p-4 md:p-6 lg:p-8">
+      <div className="w-full max-w-5xl text-center">
+        {/* Minimal Header */}
+        <div className="mb-8 md:mb-12">
+          <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold text-white mb-4 tracking-tight">
             Understand Salah
           </h1>
-          <p className="text-xl text-gray-300 max-w-2xl mx-auto mb-8">
+          <p className="text-lg md:text-xl text-gray-400 max-w-2xl mx-auto leading-relaxed">
             Real-time Arabic transcription and translation for prayer assistance
           </p>
         </div>
 
-        {/* Audio Streamer - Full Focus */}
-        <div className="bg-midnight/50 border border-gold/20 rounded-lg p-6 md:p-8">
+        {/* Audio Streamer - Immersive Focus */}
+        <div className="mb-6 md:mb-8">
           <AudioStreamer />
         </div>
 
-        {/* Instructions */}
-        <div className="mt-8 text-center">
-          <p className="text-gray-400 text-sm">
-            Enable your microphone and speak clearly in Arabic for real-time transcription and translation
+        {/* Minimal Instructions */}
+        <div>
+          <p className="text-gray-500 text-base md:text-lg leading-relaxed">
+            Enable your microphone and speak clearly in Arabic
           </p>
         </div>
       </div>

@@ -21,6 +21,9 @@ google-credentials.json
 dist/
 build/
 
+# TypeScript build info
+tsconfig.tsbuildinfo
+
 # OS generated files
 .DS_Store
 .DS_Store?

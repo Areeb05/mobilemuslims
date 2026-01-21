@@ -46,13 +46,25 @@ export function setupSocketHandlers(io: Server) {
     let recognizeStream: any = null
 
     if (speechClient) {
-      // Initialize speech recognition for this client
+      // Initialize speech recognition for this client with enhanced mobile settings
       recognizeStream = speechClient
         .streamingRecognize({
           config: {
             encoding: 'LINEAR16' as const,
             sampleRateHertz: 16000,
             languageCode: 'ar-XA', // Modern Standard Arabic
+            // Enhanced settings for better mobile audio quality
+            enableAutomaticPunctuation: true,
+            enableWordTimeOffsets: false, // Reduce processing overhead
+            model: 'latest_long', // Better for continuous speech
+            useEnhanced: true, // Enable enhanced models if available
+            // Metadata for better recognition
+            metadata: {
+              interactionType: 'DISCUSSION',
+              microphoneDistance: 'NEARFIELD',
+              originalMediaType: 'AUDIO',
+              recordingDeviceType: 'SMARTPHONE',
+            },
           },
           interimResults: true,
         })

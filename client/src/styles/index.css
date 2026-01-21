@@ -1,55 +1,30 @@
-@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700&family=Montserrat:wght@400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Amiri:ital,wght@0,400;0,700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
 
 :root {
-  --background: 0 0% 100%;
-  --foreground: 222.2 84% 4.9%;
-  --card: 0 0% 100%;
-  --card-foreground: 222.2 84% 4.9%;
-  --popover: 0 0% 100%;
-  --popover-foreground: 222.2 84% 4.9%;
-  --primary: 222.2 47.4% 11.2%;
-  --primary-foreground: 210 40% 98%;
-  --secondary: 210 40% 96.1%;
-  --secondary-foreground: 222.2 47.4% 11.2%;
-  --muted: 210 40% 96.1%;
-  --muted-foreground: 215.4 16.3% 46.9%;
-  --accent: 210 40% 96.1%;
-  --accent-foreground: 222.2 84% 4.9%;
-  --destructive: 0 84.2% 60.2%;
-  --destructive-foreground: 210 40% 98%;
-  --border: 214.3 31.8% 91.4%;
-  --input: 214.3 31.8% 91.4%;
-  --ring: 222.2 84% 4.9%;
-  --radius: 0.5rem;
-}
-
-.dark, html[data-theme="dark"] {
-  /* Deep Burgundy (4B0021) */
-  --background: 330 100% 15%;
-  --foreground: 210 40% 98%;
-  /* Rich Black for cards */
-  --card: 0 0% 0%;
-  --card-foreground: 210 40% 98%;
-  /* Rich Black for popovers */
-  --popover: 0 0% 0%;
-  --popover-foreground: 210 40% 98%;
-  /* Gold for primary elements */
-  --primary: 46 65% 52%;
+  --background: 0 0% 0%;
+  --foreground: 0 0% 100%;
+  --card: 0 0% 3%;
+  --card-foreground: 0 0% 100%;
+  --popover: 0 0% 3%;
+  --popover-foreground: 0 0% 100%;
+  --primary: 0 0% 100%;
   --primary-foreground: 0 0% 0%;
-  /* Darker Burgundy for secondary elements */
-  --secondary: 330 100% 10%;
-  --secondary-foreground: 210 40% 98%;
-  /* Muted elements */
-  --muted: 330 100% 7%;
-  --muted-foreground: 215 20.2% 75%;
-  /* Accent elements (slightly lighter burgundy) */
-  --accent: 330 100% 18%;
-  --accent-foreground: 210 40% 98%;
-  --destructive: 0 62.8% 30.6%;
-  --destructive-foreground: 210 40% 98%;
-  --border: 330 100% 15%;
-  --input: 330 100% 18%;
-  --ring: 330 100% 18%;
+  --secondary: 0 0% 7%;
+  --secondary-foreground: 0 0% 100%;
+  --muted: 0 0% 7%;
+  --muted-foreground: 0 0% 65%;
+  --accent: 0 0% 10%;
+  --accent-foreground: 0 0% 100%;
+  --destructive: 0 62.8% 50%;
+  --destructive-foreground: 0 0% 100%;
+  --border: 0 0% 15%;
+  --input: 0 0% 15%;
+  --ring: 0 0% 100%;
+  --radius: 0.5rem;
 }
 
 * {
@@ -59,14 +34,14 @@
 body {
   background-color: hsl(var(--background));
   color: hsl(var(--foreground));
-  font-family: 'Montserrat', sans-serif;
+  font-family: 'Inter', sans-serif;
   font-feature-settings: "rlig" 1, "calt" 1;
-  line-height: 1.5;
+  line-height: 1.6;
 }
 
 /* Enhanced Typography for Headings */
 h1 {
-  font-family: 'Playfair Display', serif;
+  font-family: 'Inter', sans-serif;
   font-size: 2.25rem;
   font-weight: 700;
   line-height: 1.1;
@@ -74,7 +49,7 @@ h1 {
 }
 
 h2 {
-  font-family: 'Playfair Display', serif;
+  font-family: 'Inter', sans-serif;
   font-size: 1.875rem;
   font-weight: 700;
   line-height: 1.2;
@@ -82,32 +57,133 @@ h2 {
 }
 
 h3 {
-  font-family: 'Playfair Display', serif;
+  font-family: 'Inter', sans-serif;
   font-size: 1.5rem;
   font-weight: 600;
   line-height: 1.25;
   letter-spacing: -0.025em;
 }
 
-/* Custom utility classes for colors */
-.bg-midnight {
-  background-color: #4B0021;
+/* Arabic Typography */
+.font-arabic {
+  font-family: 'Amiri', serif;
+  font-weight: 400;
 }
 
-.bg-rich-black {
+/* Fullscreen Reading Styles */
+.fullscreen-mode {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 50;
   background-color: #000000;
+  display: flex;
+  flex-direction: column;
 }
 
-.text-gold {
-  color: #d4af37;
+.fullscreen-content {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  overflow-y: auto;
 }
 
-.border-gold {
-  border-color: #d4af37;
+.fullscreen-text {
+  max-width: 100%;
+  font-size: clamp(2rem, 8vw, 4rem);
+  line-height: 1.3;
+  text-align: center;
+  white-space: pre-wrap;
+  padding: 1rem;
 }
 
-.bg-gold {
-  background-color: #d4af37;
+.fullscreen-text.arabic {
+  direction: rtl;
+  font-family: 'Amiri', serif;
+  font-weight: 400;
+}
+
+.fullscreen-text.english {
+  font-family: 'Inter', sans-serif;
+  font-weight: 400;
+}
+
+.fullscreen-controls {
+  position: absolute;
+  top: 1.5rem;
+  right: 1.5rem;
+  z-index: 10;
+}
+
+.fullscreen-close {
+  background: rgba(255, 255, 255, 0.15);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  color: white;
+  width: 3rem;
+  height: 3rem;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+}
+
+.fullscreen-close:hover {
+  background: rgba(255, 255, 255, 0.25);
+  transform: scale(1.1);
+  box-shadow: 0 6px 25px rgba(0, 0, 0, 0.4);
+}
+
+.fullscreen-close:active {
+  transform: scale(0.95);
+}
+
+/* Hydration and Layout Stability */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html, body {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+}
+
+#root {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Grid centering utilities for hydration stability */
+.grid-centered {
+  display: grid;
+  place-items: center;
+  min-height: 100vh;
+}
+
+.content-centered {
+  width: 100%;
+  max-width: 80rem; /* 1280px / 16 = 80rem */
+  text-align: center;
+}
+
+/* Enhanced glassmorphism with better browser support */
+.glass-panel {
+  background: rgba(255, 255, 255, 0.08);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
 }
 
 /* Animation utilities */
@@ -115,4 +191,14 @@ h3 {
   transition-property: all;
   transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
   transition-duration: 300ms;
+}
+
+/* Touch and interaction improvements */
+.touch-target {
+  min-height: 44px;
+  min-width: 44px;
+}
+
+.smooth-scroll {
+  scroll-behavior: smooth;
 }
