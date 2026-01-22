@@ -6,6 +6,18 @@ const router = Router()
 // Initialize Stripe with secret key
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!)
 
+// Construct frontend URL from environment variables
+// Priority: FRONTEND_URL > RAILWAY_PUBLIC_DOMAIN > localhost fallback
+const getFrontendUrl = (): string => {
+  if (process.env.FRONTEND_URL) {
+    return process.env.FRONTEND_URL
+  }
+  if (process.env.RAILWAY_PUBLIC_DOMAIN) {
+    return `https://${process.env.RAILWAY_PUBLIC_DOMAIN}`
+  }
+  return 'http://localhost:3000'
+}
+
 // Note: Using inline price_data instead of predefined products for simplicity
 // Product IDs can be added later if needed for more complex Stripe integration
 
@@ -49,8 +61,8 @@ router.post('/create-checkout-session', async (req, res): Promise<void> => {
           },
           quantity: 1,
         }],
-        success_url: `${process.env.FRONTEND_URL}/success?session_id={CHECKOUT_SESSION_ID}`,
-        cancel_url: `${process.env.FRONTEND_URL}/cancel`,
+        success_url: `${getFrontendUrl()}/success?session_id={CHECKOUT_SESSION_ID}`,
+        cancel_url: `${getFrontendUrl()}/cancel`,
         customer_email: email,
         metadata: {
           donation_type: 'one-time',
@@ -77,8 +89,8 @@ router.post('/create-checkout-session', async (req, res): Promise<void> => {
           },
           quantity: 1,
         }],
-        success_url: `${process.env.FRONTEND_URL}/success?session_id={CHECKOUT_SESSION_ID}`,
-        cancel_url: `${process.env.FRONTEND_URL}/cancel`,
+        success_url: `${getFrontendUrl()}/success?session_id={CHECKOUT_SESSION_ID}`,
+        cancel_url: `${getFrontendUrl()}/cancel`,
         customer_email: email,
         metadata: {
           donation_type: 'subscription',
