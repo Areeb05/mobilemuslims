@@ -46,18 +46,16 @@ export function setupSocketHandlers(io: Server) {
     let recognizeStream: any = null
 
     if (speechClient) {
-      // Initialize speech recognition for this client with enhanced mobile settings
+      // Initialize speech recognition for this client
+      // Note: 'latest_long' and 'useEnhanced' are NOT supported for Arabic (ar-XA)
       recognizeStream = speechClient
         .streamingRecognize({
           config: {
             encoding: 'LINEAR16' as const,
             sampleRateHertz: 16000,
             languageCode: 'ar-XA', // Modern Standard Arabic
-            // Enhanced settings for better mobile audio quality
             enableAutomaticPunctuation: true,
-            enableWordTimeOffsets: false, // Reduce processing overhead
-            model: 'latest_long', // Better for continuous speech
-            useEnhanced: true, // Enable enhanced models if available
+            enableWordTimeOffsets: false,
             // Metadata for better recognition
             metadata: {
               interactionType: 'DISCUSSION',
@@ -115,7 +113,10 @@ export function setupSocketHandlers(io: Server) {
     // Handle audio data from client
     socket.on('audio', (data: any) => {
       if (speechClient && recognizeStream && Buffer.isBuffer(data)) {
-        recognizeStream.write(data)
+        // Check if stream is still writable before writing
+        if (!recognizeStream.destroyed && recognizeStream.writable) {
+          recognizeStream.write(data)
+        }
       } else if (!speechClient) {
         // In demo mode, just acknowledge audio data
         console.log('🎭 Demo mode: Received audio data from client')
