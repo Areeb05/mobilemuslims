@@ -27,6 +27,7 @@ export default function AudioStreamer({ endpoint = '/api/stream' }: AudioStreame
   const arabicScrollRef = useRef<HTMLDivElement | null>(null)
   const englishScrollRef = useRef<HTMLDivElement | null>(null)
   const fullscreenScrollRef = useRef<HTMLDivElement | null>(null)
+  const wakeLockRef = useRef<WakeLockSentinel | null>(null)
 
   // Auto-scroll Arabic panel to bottom when new transcription arrives
   useEffect(() => {
@@ -102,6 +103,16 @@ export default function AudioStreamer({ endpoint = '/api/stream' }: AudioStreame
 
   const startRecording = async () => {
     try {
+      // Request screen wake lock to keep screen on during prayer
+      if ('wakeLock' in navigator) {
+        try {
+          wakeLockRef.current = await navigator.wakeLock.request('screen')
+          console.log('Screen wake lock acquired')
+        } catch (wakeLockErr) {
+          console.warn('Wake lock not available:', wakeLockErr)
+        }
+      }
+
       // Enhanced mobile-optimized audio constraints
       const constraints: MediaStreamConstraints = {
         audio: {
@@ -200,6 +211,13 @@ export default function AudioStreamer({ endpoint = '/api/stream' }: AudioStreame
 
   const stopRecording = () => {
     setIsRecording(false)
+
+    // Release screen wake lock
+    if (wakeLockRef.current) {
+      wakeLockRef.current.release()
+      wakeLockRef.current = null
+      console.log('Screen wake lock released')
+    }
 
     if (mediaRecorderRef.current) {
       mediaRecorderRef.current.stop()

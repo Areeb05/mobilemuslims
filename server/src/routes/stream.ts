@@ -44,28 +44,49 @@ export function setupSocketHandlers(io: Server) {
     let latestTranscription = ''
     let translationInterval: NodeJS.Timeout | null = null
     let recognizeStream: any = null
+    let isClientConnected = true
+    let streamRecreationTimeout: NodeJS.Timeout | null = null
 
-    if (speechClient) {
-      // Initialize speech recognition for this client
-      // Note: 'latest_long' and 'useEnhanced' are NOT supported for Arabic (ar-XA)
+    // Speech recognition config - reused for stream recreation
+    const speechConfig = {
+      config: {
+        encoding: 'LINEAR16' as const,
+        sampleRateHertz: 16000,
+        languageCode: 'ar-XA', // Modern Standard Arabic
+        enableAutomaticPunctuation: true,
+        enableWordTimeOffsets: false,
+        // Metadata for better recognition
+        metadata: {
+          interactionType: 'DISCUSSION' as const,
+          microphoneDistance: 'NEARFIELD' as const,
+          originalMediaType: 'AUDIO' as const,
+          recordingDeviceType: 'SMARTPHONE' as const,
+        },
+      },
+      interimResults: true,
+    }
+
+    // Function to create/recreate the speech recognition stream
+    const createRecognizeStream = () => {
+      if (!speechClient || !isClientConnected) {
+        return
+      }
+
+      // Clean up existing stream if any
+      if (recognizeStream) {
+        recognizeStream.removeAllListeners()
+        try {
+          recognizeStream.end()
+        } catch (e) {
+          // Ignore errors when ending old stream
+        }
+        recognizeStream = null
+      }
+
+      console.log('🎙️ Creating speech stream for:', socket.id)
+
       recognizeStream = speechClient
-        .streamingRecognize({
-          config: {
-            encoding: 'LINEAR16' as const,
-            sampleRateHertz: 16000,
-            languageCode: 'ar-XA', // Modern Standard Arabic
-            enableAutomaticPunctuation: true,
-            enableWordTimeOffsets: false,
-            // Metadata for better recognition
-            metadata: {
-              interactionType: 'DISCUSSION',
-              microphoneDistance: 'NEARFIELD',
-              originalMediaType: 'AUDIO',
-              recordingDeviceType: 'SMARTPHONE',
-            },
-          },
-          interimResults: true,
-        })
+        .streamingRecognize(speechConfig)
         .on('data', (data: any) => {
           if (data.results[0] && data.results[0].alternatives[0]) {
             latestTranscription = data.results[0].alternatives[0].transcript
@@ -73,12 +94,45 @@ export function setupSocketHandlers(io: Server) {
           }
         })
         .on('error', (err: any) => {
-          console.error('🎙️ Speech-to-Text error:', err)
-          socket.emit('error', 'Transcription error')
+          console.error('🎙️ Speech-to-Text error:', err.message || err)
+          // Don't emit error to client for stream timeout - just recreate
+          if (isClientConnected) {
+            recreateStream()
+          }
         })
         .on('end', () => {
           console.log('🎙️ Speech stream ended for:', socket.id)
+          // Automatically recreate stream if client is still connected
+          if (isClientConnected) {
+            recreateStream()
+          }
         })
+    }
+
+    // Function to recreate stream with a small delay
+    const recreateStream = () => {
+      if (!isClientConnected) {
+        return
+      }
+
+      // Clear any pending recreation
+      if (streamRecreationTimeout) {
+        clearTimeout(streamRecreationTimeout)
+      }
+
+      // Small delay to avoid rapid stream recreation
+      streamRecreationTimeout = setTimeout(() => {
+        if (isClientConnected) {
+          console.log('🔄 Recreating speech stream for:', socket.id)
+          createRecognizeStream()
+        }
+      }, 100)
+    }
+
+    if (speechClient) {
+      // Initialize speech recognition for this client
+      // Note: 'latest_long' and 'useEnhanced' are NOT supported for Arabic (ar-XA)
+      createRecognizeStream()
 
       // Translate every 500ms
       translationInterval = setInterval(async () => {
@@ -125,12 +179,28 @@ export function setupSocketHandlers(io: Server) {
 
     socket.on('disconnect', () => {
       console.log('👤 Client disconnected:', socket.id)
+      
+      // Mark client as disconnected to prevent stream recreation
+      isClientConnected = false
+
+      // Clear recreation timeout
+      if (streamRecreationTimeout) {
+        clearTimeout(streamRecreationTimeout)
+        streamRecreationTimeout = null
+      }
+
       if (translationInterval) {
         clearInterval(translationInterval)
         translationInterval = null
       }
+
       if (recognizeStream) {
-        recognizeStream.end()
+        recognizeStream.removeAllListeners()
+        try {
+          recognizeStream.end()
+        } catch (e) {
+          // Ignore errors when ending stream
+        }
         recognizeStream = null
       }
     })
