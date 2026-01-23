@@ -271,30 +271,36 @@ export default function AudioStreamer({ endpoint = '/api/stream' }: AudioStreame
 
       {/* Main Interface */}
       <div className="flex flex-col gap-3 md:gap-4 w-full max-w-6xl mx-auto">
-        {/* Top Row: Status + Recording Control */}
-        <div className="flex items-center justify-center gap-4">
-          <Badge className="text-xs">
-            {connectionStatus === 'connected' ? 'Connected' :
-             connectionStatus === 'connecting' ? 'Connecting...' : 'Disconnected'}
-          </Badge>
+        {/* Top Row: Server Status + Recording Control */}
+        <div className="flex items-center justify-center gap-3">
+          <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+            <span>Server:</span>
+            <Badge 
+              variant={connectionStatus === 'connected' ? 'default' : 'secondary'}
+              className="text-xs"
+            >
+              {connectionStatus === 'connected' ? 'Connected' :
+               connectionStatus === 'connecting' ? 'Connecting...' : 'Disconnected'}
+            </Badge>
+          </div>
           
           <Button
             onClick={toggleRecording}
             variant={isRecording ? "destructive" : "default"}
-            size="lg"
-            className={`flex items-center gap-2 px-6 py-3 rounded-full font-semibold transition-all duration-300 touch-manipulation active:scale-95 ${
+            size="sm"
+            className={`flex items-center gap-2 px-4 py-2 rounded-full font-medium transition-all duration-300 touch-manipulation active:scale-95 ${
               connectionStatus !== 'connected' ? 'opacity-50 cursor-not-allowed' : 'hover:scale-105'
             }`}
             disabled={connectionStatus !== 'connected'}
           >
             {isRecording ? (
               <>
-                <Square className="h-5 w-5" />
+                <Square className="h-4 w-4" />
                 <span>Stop</span>
               </>
             ) : (
               <>
-                <Mic className="h-5 w-5" />
+                <Mic className="h-4 w-4" />
                 <span>Record</span>
               </>
             )}
