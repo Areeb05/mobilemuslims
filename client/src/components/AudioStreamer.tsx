@@ -270,35 +270,32 @@ export default function AudioStreamer({ endpoint = '/api/stream' }: AudioStreame
       )}
 
       {/* Main Interface */}
-      <div className="flex flex-col gap-6 md:gap-8 w-full max-w-4xl mx-auto">
-        {/* Connection Status */}
-        <div className="flex items-center justify-center">
+      <div className="flex flex-col gap-3 md:gap-4 w-full max-w-6xl mx-auto">
+        {/* Top Row: Status + Recording Control */}
+        <div className="flex items-center justify-center gap-4">
           <Badge className="text-xs">
             {connectionStatus === 'connected' ? 'Connected' :
              connectionStatus === 'connecting' ? 'Connecting...' : 'Disconnected'}
           </Badge>
-        </div>
-
-        {/* Recording Control */}
-        <div className="flex justify-center">
+          
           <Button
             onClick={toggleRecording}
             variant={isRecording ? "destructive" : "default"}
             size="lg"
-            className={`flex flex-col items-center gap-4 px-10 py-8 md:px-12 md:py-10 rounded-3xl font-semibold text-lg md:text-xl transition-all duration-300 touch-manipulation active:scale-95 ${
-              connectionStatus !== 'connected' ? 'opacity-50 cursor-not-allowed scale-95' : 'hover:scale-105'
+            className={`flex items-center gap-2 px-6 py-3 rounded-full font-semibold transition-all duration-300 touch-manipulation active:scale-95 ${
+              connectionStatus !== 'connected' ? 'opacity-50 cursor-not-allowed' : 'hover:scale-105'
             }`}
             disabled={connectionStatus !== 'connected'}
           >
             {isRecording ? (
               <>
-                <Square className="h-10 w-10 md:h-12 md:w-12" />
-                <span>Stop Recording</span>
+                <Square className="h-5 w-5" />
+                <span>Stop</span>
               </>
             ) : (
               <>
-                <Mic className="h-10 w-10 md:h-12 md:w-12" />
-                <span>Start Recording</span>
+                <Mic className="h-5 w-5" />
+                <span>Record</span>
               </>
             )}
           </Button>
@@ -307,37 +304,39 @@ export default function AudioStreamer({ endpoint = '/api/stream' }: AudioStreame
         {/* Error Display */}
         {error && (
           <Alert variant="destructive" className="max-w-md mx-auto">
-            <AlertDescription>{error}</AlertDescription>
+            <AlertDescription className="text-sm">{error}</AlertDescription>
           </Alert>
         )}
 
-        {/* Text Panels */}
-        <div className="space-y-6 md:space-y-8">
+        {/* Text Panels - Horizontal on md+, Vertical on mobile */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4">
           {/* Arabic Transcription Panel */}
           <Card className="bg-card/50 border-border/50 backdrop-blur-sm">
-            <CardHeader className="text-center pb-4">
-              <div className="flex items-center justify-center gap-3 mb-2">
-                <Avatar className="w-10 h-10 md:w-12 md:h-12">
-                  <AvatarFallback className="bg-primary/10">
-                    <Mic className="h-5 w-5 md:h-6 md:w-6 text-primary" />
-                  </AvatarFallback>
-                </Avatar>
-                <CardTitle className="text-xl md:text-2xl">Arabic</CardTitle>
+            <CardHeader className="py-2 px-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Avatar className="w-7 h-7">
+                    <AvatarFallback className="bg-primary/10">
+                      <Mic className="h-3.5 w-3.5 text-primary" />
+                    </AvatarFallback>
+                  </Avatar>
+                  <CardTitle className="text-base">Arabic</CardTitle>
+                </div>
+                <button
+                  onClick={() => enterFullscreen('arabic')}
+                  className="p-1.5 rounded-full hover:bg-accent active:bg-accent/80 transition-all duration-200 touch-manipulation"
+                  aria-label="Fullscreen Arabic text"
+                >
+                  <Maximize2 className="h-4 w-4 text-muted-foreground hover:text-foreground" />
+                </button>
               </div>
-              <button
-                onClick={() => enterFullscreen('arabic')}
-                className="p-2 rounded-full hover:bg-accent active:bg-accent/80 transition-all duration-200 touch-manipulation ml-auto"
-                aria-label="Fullscreen Arabic text"
-              >
-                <Maximize2 className="h-5 w-5 md:h-6 md:w-6 text-muted-foreground hover:text-foreground" />
-              </button>
             </CardHeader>
-            <CardContent>
+            <CardContent className="py-2 px-4">
               <div
                 ref={scrollRef}
-                className="h-48 md:h-56 overflow-y-auto scrollbar-thin scrollbar-thumb-muted scrollbar-track-transparent flex items-center justify-center"
+                className="h-32 md:h-40 lg:h-48 overflow-y-auto scrollbar-thin scrollbar-thumb-muted scrollbar-track-transparent flex items-center justify-center"
               >
-                <p className="text-foreground text-xl md:text-2xl leading-relaxed text-center font-arabic whitespace-pre-wrap max-w-full px-4" dir="rtl">
+                <p className="text-foreground text-lg md:text-xl leading-relaxed text-center font-arabic whitespace-pre-wrap max-w-full" dir="rtl">
                   {transcription || 'Waiting for speech...'}
                 </p>
               </div>
@@ -346,28 +345,30 @@ export default function AudioStreamer({ endpoint = '/api/stream' }: AudioStreame
 
           {/* English Translation Panel */}
           <Card className="bg-card/50 border-border/50 backdrop-blur-sm">
-            <CardHeader className="text-center pb-4">
-              <div className="flex items-center justify-center gap-3 mb-2">
-                <Avatar className="w-10 h-10 md:w-12 md:h-12">
-                  <AvatarFallback className="bg-primary/10">
-                    <Volume2 className="h-5 w-5 md:h-6 md:w-6 text-primary" />
-                  </AvatarFallback>
-                </Avatar>
-                <CardTitle className="text-xl md:text-2xl">English</CardTitle>
+            <CardHeader className="py-2 px-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Avatar className="w-7 h-7">
+                    <AvatarFallback className="bg-primary/10">
+                      <Volume2 className="h-3.5 w-3.5 text-primary" />
+                    </AvatarFallback>
+                  </Avatar>
+                  <CardTitle className="text-base">English</CardTitle>
+                </div>
+                <button
+                  onClick={() => enterFullscreen('english')}
+                  className="p-1.5 rounded-full hover:bg-accent active:bg-accent/80 transition-all duration-200 touch-manipulation"
+                  aria-label="Fullscreen English text"
+                >
+                  <Maximize2 className="h-4 w-4 text-muted-foreground hover:text-foreground" />
+                </button>
               </div>
-              <button
-                onClick={() => enterFullscreen('english')}
-                className="p-2 rounded-full hover:bg-accent active:bg-accent/80 transition-all duration-200 touch-manipulation ml-auto"
-                aria-label="Fullscreen English text"
-              >
-                <Maximize2 className="h-5 w-5 md:h-6 md:w-6 text-muted-foreground hover:text-foreground" />
-              </button>
             </CardHeader>
-            <CardContent>
+            <CardContent className="py-2 px-4">
               <div
-                className="h-48 md:h-56 overflow-y-auto scrollbar-thin scrollbar-thumb-muted scrollbar-track-transparent flex items-center justify-center"
+                className="h-32 md:h-40 lg:h-48 overflow-y-auto scrollbar-thin scrollbar-thumb-muted scrollbar-track-transparent flex items-center justify-center"
               >
-                <p className="text-foreground text-xl md:text-2xl leading-relaxed text-center whitespace-pre-wrap max-w-full px-4">
+                <p className="text-foreground text-lg md:text-xl leading-relaxed text-center whitespace-pre-wrap max-w-full">
                   {translation || 'Translation will appear here...'}
                 </p>
               </div>
@@ -376,8 +377,8 @@ export default function AudioStreamer({ endpoint = '/api/stream' }: AudioStreame
         </div>
 
         {/* Minimal Instructions */}
-        <div className="text-center text-white/60 text-sm">
-          <p>Tap the microphone to begin recording</p>
+        <div className="text-center text-white/50 text-xs">
+          <p>Tap record and speak in Arabic</p>
         </div>
       </div>
     </>
