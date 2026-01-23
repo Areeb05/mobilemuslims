@@ -24,14 +24,22 @@ export default function AudioStreamer({ endpoint = '/api/stream' }: AudioStreame
   const audioContextRef = useRef<AudioContext | null>(null)
   const processorNodeRef = useRef<ScriptProcessorNode | AudioWorkletNode | null>(null)
   const sourceNodeRef = useRef<MediaStreamAudioSourceNode | null>(null)
-  const scrollRef = useRef<HTMLDivElement | null>(null)
+  const arabicScrollRef = useRef<HTMLDivElement | null>(null)
+  const englishScrollRef = useRef<HTMLDivElement | null>(null)
 
-  // Auto-scroll to bottom when new text arrives
+  // Auto-scroll Arabic panel to bottom when new transcription arrives
   useEffect(() => {
-    if (scrollRef.current) {
-      scrollRef.current.scrollTop = scrollRef.current.scrollHeight
+    if (arabicScrollRef.current) {
+      arabicScrollRef.current.scrollTop = arabicScrollRef.current.scrollHeight
     }
-  }, [transcription, translation])
+  }, [transcription])
+
+  // Auto-scroll English panel to bottom when new translation arrives
+  useEffect(() => {
+    if (englishScrollRef.current) {
+      englishScrollRef.current.scrollTop = englishScrollRef.current.scrollHeight
+    }
+  }, [translation])
 
   useEffect(() => {
     // Initialize Socket.IO connection
@@ -339,8 +347,8 @@ export default function AudioStreamer({ endpoint = '/api/stream' }: AudioStreame
             </CardHeader>
             <CardContent className="py-2 px-4">
               <div
-                ref={scrollRef}
-                className="h-32 md:h-40 lg:h-48 overflow-y-auto scrollbar-thin scrollbar-thumb-muted scrollbar-track-transparent flex items-center justify-center"
+                ref={arabicScrollRef}
+                className="h-32 md:h-40 lg:h-48 overflow-y-auto scrollbar-thin scrollbar-thumb-muted scrollbar-track-transparent flex flex-col justify-end"
               >
                 <p className="text-foreground text-lg md:text-xl leading-relaxed text-center font-arabic whitespace-pre-wrap max-w-full" dir="rtl">
                   {transcription || 'Waiting for speech...'}
@@ -372,7 +380,8 @@ export default function AudioStreamer({ endpoint = '/api/stream' }: AudioStreame
             </CardHeader>
             <CardContent className="py-2 px-4">
               <div
-                className="h-32 md:h-40 lg:h-48 overflow-y-auto scrollbar-thin scrollbar-thumb-muted scrollbar-track-transparent flex items-center justify-center"
+                ref={englishScrollRef}
+                className="h-32 md:h-40 lg:h-48 overflow-y-auto scrollbar-thin scrollbar-thumb-muted scrollbar-track-transparent flex flex-col justify-end"
               >
                 <p className="text-foreground text-lg md:text-xl leading-relaxed text-center whitespace-pre-wrap max-w-full">
                   {translation || 'Translation will appear here...'}
