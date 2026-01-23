@@ -26,6 +26,7 @@ export default function AudioStreamer({ endpoint = '/api/stream' }: AudioStreame
   const sourceNodeRef = useRef<MediaStreamAudioSourceNode | null>(null)
   const arabicScrollRef = useRef<HTMLDivElement | null>(null)
   const englishScrollRef = useRef<HTMLDivElement | null>(null)
+  const fullscreenScrollRef = useRef<HTMLDivElement | null>(null)
 
   // Auto-scroll Arabic panel to bottom when new transcription arrives
   useEffect(() => {
@@ -40,6 +41,13 @@ export default function AudioStreamer({ endpoint = '/api/stream' }: AudioStreame
       englishScrollRef.current.scrollTop = englishScrollRef.current.scrollHeight
     }
   }, [translation])
+
+  // Auto-scroll fullscreen mode to bottom when content changes
+  useEffect(() => {
+    if (fullscreenScrollRef.current && fullscreenMode) {
+      fullscreenScrollRef.current.scrollTop = fullscreenScrollRef.current.scrollHeight
+    }
+  }, [transcription, translation, fullscreenMode])
 
   useEffect(() => {
     // Initialize Socket.IO connection
@@ -259,20 +267,34 @@ export default function AudioStreamer({ endpoint = '/api/stream' }: AudioStreame
     <>
       {/* Fullscreen Reading Mode */}
       {fullscreenMode && fullscreenContent && (
-        <div className="fullscreen-mode">
-          <div className="fullscreen-controls">
+        <div className="fixed inset-0 z-50 bg-black flex flex-col">
+          {/* Fullscreen Header */}
+          <div className="flex items-center justify-between p-4 border-b border-white/10">
+            <span className="text-white/60 text-sm">
+              {fullscreenMode === 'arabic' ? 'Arabic Transcription' : 'English Translation'}
+            </span>
             <button
               onClick={exitFullscreen}
-              className="fullscreen-close"
+              className="p-2 rounded-full hover:bg-white/10 transition-colors"
               aria-label="Exit fullscreen"
             >
-              <X className="h-5 w-5" />
+              <X className="h-5 w-5 text-white" />
             </button>
           </div>
-          <div className="fullscreen-content">
-            <div className={fullscreenContent.className}>
+          
+          {/* Scrollable Content */}
+          <div 
+            ref={fullscreenScrollRef}
+            className="flex-1 overflow-y-auto p-6 flex flex-col justify-end"
+          >
+            <p 
+              className={`text-white text-2xl md:text-3xl lg:text-4xl leading-relaxed text-center whitespace-pre-wrap ${
+                fullscreenMode === 'arabic' ? 'font-arabic' : ''
+              }`}
+              dir={fullscreenMode === 'arabic' ? 'rtl' : 'ltr'}
+            >
               {fullscreenContent.text}
-            </div>
+            </p>
           </div>
         </div>
       )}
