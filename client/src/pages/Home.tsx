@@ -53,8 +53,8 @@ export default function Home() {
       <div className="w-full max-w-md text-center">
         {/* Brand */}
         <div className="mb-10">
-          <h1 className="text-3xl md:text-4xl font-bold tracking-tight mb-2">
-            Mobile Muslims
+          <h1 className="text-3xl md:text-4xl font-bold tracking-tight mb-2 bg-gradient-to-r from-[#D4D0C8] via-white to-[#E8E4E1] bg-clip-text text-transparent">
+            mobilemuslims.com
           </h1>
           <p className="text-gray-400 text-sm">
             Tools for the modern Muslim
@@ -90,7 +90,7 @@ export default function Home() {
 
         {/* Footer */}
         <p className="mt-10 text-gray-500 text-xs">
-          © {new Date().getFullYear()} Mobile Muslims
+          © {new Date().getFullYear()} mobilemuslims.com
         </p>
       </div>
     </div>
