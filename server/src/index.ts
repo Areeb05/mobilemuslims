@@ -49,6 +49,10 @@ app.get('/api/health', (_req, res) => {
 import donationRoutes from './routes/donations.js'
 app.use('/api/donations', donationRoutes)
 
+// Pain Free Salah routes
+import painfreesalahRoutes from './routes/painfreesalah.js'
+app.use('/api/painfreesalah', painfreesalahRoutes)
+
 // Import and setup WebSocket handlers
 import { setupSocketHandlers } from './routes/stream.js'
 setupSocketHandlers(io)
