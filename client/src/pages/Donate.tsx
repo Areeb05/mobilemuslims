@@ -9,6 +9,7 @@ import { Separator } from '../components/ui/separator'
 const CRYPTO_ADDRESSES = {
   bitcoin: 'bc1qxy2kgdygjrsqtzq2n0yrf2493p83kkfjhx0wlh',
   ethereum: '0x71C7656EC7ab88b098defB751B7401B5f6d8976F',
+  solana: '7EcDhSYGxXyscszYEp35KHN8vvw3svAuLKTzXwCFLtV',
 }
 
 const CopyableAddress = ({ label, address, icon }: { label: string; address: string; icon: React.ReactNode }) => {
@@ -21,7 +22,11 @@ const CopyableAddress = ({ label, address, icon }: { label: string; address: str
   }
 
   return (
-    <div className="flex items-center justify-between p-3 bg-white/5 rounded-lg border border-white/10">
+    <button
+      onClick={handleCopy}
+      className="w-full flex items-center justify-between p-3 bg-white/5 hover:bg-white/10 rounded-lg border border-white/10 transition-colors cursor-pointer text-left"
+      aria-label={`Copy ${label} address`}
+    >
       <div className="flex items-center gap-3 min-w-0">
         <div className="text-primary">{icon}</div>
         <div className="min-w-0">
@@ -29,18 +34,14 @@ const CopyableAddress = ({ label, address, icon }: { label: string; address: str
           <p className="text-xs text-gray-400 truncate font-mono">{address}</p>
         </div>
       </div>
-      <button
-        onClick={handleCopy}
-        className="p-2 hover:bg-white/10 rounded-md transition-colors flex-shrink-0"
-        aria-label={`Copy ${label} address`}
-      >
+      <div className="p-2 flex-shrink-0">
         {copied ? (
           <Check className="h-4 w-4 text-green-500" />
         ) : (
           <Copy className="h-4 w-4 text-gray-400" />
         )}
-      </button>
-    </div>
+      </div>
+    </button>
   )
 }
 
@@ -48,6 +49,13 @@ const CopyableAddress = ({ label, address, icon }: { label: string; address: str
 const EthereumIcon = ({ className }: { className?: string }) => (
   <svg className={className} viewBox="0 0 24 24" fill="currentColor">
     <path d="M11.944 17.97L4.58 13.62 11.943 24l7.37-10.38-7.372 4.35h.003zM12.056 0L4.69 12.223l7.365 4.354 7.365-4.35L12.056 0z" />
+  </svg>
+)
+
+// Solana icon (not in lucide-react)
+const SolanaIcon = ({ className }: { className?: string }) => (
+  <svg className={className} viewBox="0 0 24 24" fill="currentColor">
+    <path d="M4.52 16.51a.76.76 0 01.54-.22h16.16a.38.38 0 01.27.65l-3.07 3.07a.76.76 0 01-.54.22H1.72a.38.38 0 01-.27-.65l3.07-3.07zm0-9.02a.78.78 0 01.54-.22h16.16a.38.38 0 01.27.65l-3.07 3.07a.76.76 0 01-.54.22H1.72a.38.38 0 01-.27-.65l3.07-3.07zm16.96 4.51a.76.76 0 00-.54-.22H4.78a.38.38 0 00-.27.65l3.07 3.07c.14.14.34.22.54.22h16.16a.38.38 0 00.27-.65l-3.07-3.07z" />
   </svg>
 )
 
@@ -103,6 +111,11 @@ export default function Donate() {
             label="Ethereum"
             address={CRYPTO_ADDRESSES.ethereum}
             icon={<EthereumIcon className="h-5 w-5" />}
+          />
+          <CopyableAddress
+            label="Solana"
+            address={CRYPTO_ADDRESSES.solana}
+            icon={<SolanaIcon className="h-5 w-5" />}
           />
         </div>
 
