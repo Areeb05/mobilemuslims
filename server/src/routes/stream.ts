@@ -6,6 +6,20 @@ import dotenv from 'dotenv'
 // Load environment variables for this module
 dotenv.config()
 
+// Safety net: Catch unhandled errors from orphaned gRPC streams
+// This prevents server crashes when Google's Speech API times out after client disconnect
+process.on('uncaughtException', (err: Error) => {
+  // Check if this is a known gRPC timeout error from an orphaned stream
+  if (err.message?.includes('408:Request Timeout') || 
+      err.message?.includes('Audio Timeout Error')) {
+    console.warn('⚠️ Caught orphaned stream timeout (prevented crash):', err.message)
+    return // Don't crash - this is expected for orphaned streams
+  }
+  // Re-throw other errors to maintain normal crash behavior
+  console.error('💥 Uncaught exception:', err)
+  throw err
+})
+
 // Handle Google Cloud credentials
 let credentials = {}
 try {
@@ -195,13 +209,30 @@ export function setupSocketHandlers(io: Server) {
       }
 
       if (recognizeStream) {
-        recognizeStream.removeAllListeners()
-        try {
-          recognizeStream.end()
-        } catch (e) {
-          // Ignore errors when ending stream
-        }
+        // Store reference and null out immediately to prevent any recreation attempts
+        const orphanedStream = recognizeStream
         recognizeStream = null
+        
+        // Remove data and end listeners, but keep/add error handler to prevent crash
+        orphanedStream.removeAllListeners('data')
+        orphanedStream.removeAllListeners('end')
+        
+        // Add a no-op error handler to swallow errors from orphaned stream
+        // This prevents "unhandled error" crashes when Google's gRPC times out later
+        orphanedStream.on('error', (err: any) => {
+          console.log('🗑️ Ignored error from orphaned stream:', err.message || err)
+        })
+        
+        // Force destroy instead of graceful end
+        try {
+          if (typeof orphanedStream.destroy === 'function') {
+            orphanedStream.destroy()
+          } else {
+            orphanedStream.end()
+          }
+        } catch (e) {
+          // Ignore destruction errors
+        }
       }
     })
   })
