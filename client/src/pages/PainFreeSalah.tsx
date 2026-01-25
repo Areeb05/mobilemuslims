@@ -298,7 +298,7 @@ export default function PainFreeSalah() {
                   You don't have to live with this pain.
                 </h2>
                 <p className="text-gray-400 text-lg">
-                  Thousands of Muslims have transformed their prayer experience with our proven program.
+                  Thousands of people have transformed their mobility and regained their pain-free ability with our proven program.
                 </p>
               </div>
 
