@@ -49,7 +49,7 @@ const MultiSelectOption = ({
     onClick={onClick}
     className={`w-full p-4 rounded-xl border transition-all duration-200 text-left ${
       selected
-        ? 'bg-primary/20 border-primary text-white'
+        ? 'bg-emerald-600/20 border-emerald-500 text-white'
         : 'bg-white/5 border-white/10 text-white hover:bg-white/10'
     }`}
     aria-pressed={selected}
@@ -60,7 +60,7 @@ const MultiSelectOption = ({
         {description && <p className="text-sm text-gray-400 mt-1">{description}</p>}
       </div>
       {selected && (
-        <div className="w-6 h-6 rounded-full bg-primary flex items-center justify-center flex-shrink-0 ml-3">
+        <div className="w-6 h-6 rounded-full bg-emerald-600 flex items-center justify-center flex-shrink-0 ml-3">
           <Check className="w-4 h-4 text-white" />
         </div>
       )}
@@ -238,7 +238,7 @@ export default function PainFreeSalah() {
                 disabled={!canProceed()}
                 className={`w-full mt-6 p-4 rounded-xl font-medium transition-all duration-200 flex items-center justify-center gap-2 ${
                   canProceed()
-                    ? 'bg-primary hover:bg-primary/90 text-white hover:scale-[1.02] active:scale-[0.98]'
+                    ? 'bg-emerald-600 hover:bg-emerald-500 text-white hover:scale-[1.02] active:scale-[0.98]'
                     : 'bg-white/10 text-gray-500 cursor-not-allowed'
                 }`}
               >
@@ -265,7 +265,7 @@ export default function PainFreeSalah() {
                     onClick={() => toggleBodyPart(part.id)}
                     className={`p-3 rounded-xl border transition-all duration-200 text-sm font-medium ${
                       answers.bodyParts.includes(part.id)
-                        ? 'bg-primary/20 border-primary text-white'
+                        ? 'bg-emerald-600/20 border-emerald-500 text-white'
                         : 'bg-white/5 border-white/10 text-white hover:bg-white/10'
                     }`}
                     aria-pressed={answers.bodyParts.includes(part.id)}
@@ -280,7 +280,7 @@ export default function PainFreeSalah() {
                 disabled={!canProceed()}
                 className={`w-full mt-6 p-4 rounded-xl font-medium transition-all duration-200 flex items-center justify-center gap-2 ${
                   canProceed()
-                    ? 'bg-primary hover:bg-primary/90 text-white hover:scale-[1.02] active:scale-[0.98]'
+                    ? 'bg-emerald-600 hover:bg-emerald-500 text-white hover:scale-[1.02] active:scale-[0.98]'
                     : 'bg-white/10 text-gray-500 cursor-not-allowed'
                 }`}
               >
@@ -308,19 +308,19 @@ export default function PainFreeSalah() {
                 </p>
                 <ul className="text-left space-y-3 text-gray-300">
                   <li className="flex items-start gap-3">
-                    <Check className="h-5 w-5 text-primary flex-shrink-0 mt-0.5" />
+                    <Check className="h-5 w-5 text-emerald-500 flex-shrink-0 mt-0.5" />
                     <span>Targeted exercises for your specific pain points</span>
                   </li>
                   <li className="flex items-start gap-3">
-                    <Check className="h-5 w-5 text-primary flex-shrink-0 mt-0.5" />
+                    <Check className="h-5 w-5 text-emerald-500 flex-shrink-0 mt-0.5" />
                     <span>Video tutorials for proper form in each position</span>
                   </li>
                   <li className="flex items-start gap-3">
-                    <Check className="h-5 w-5 text-primary flex-shrink-0 mt-0.5" />
+                    <Check className="h-5 w-5 text-emerald-500 flex-shrink-0 mt-0.5" />
                     <span>Daily routines that fit your schedule</span>
                   </li>
                   <li className="flex items-start gap-3">
-                    <Check className="h-5 w-5 text-primary flex-shrink-0 mt-0.5" />
+                    <Check className="h-5 w-5 text-emerald-500 flex-shrink-0 mt-0.5" />
                     <span>Progress tracking and personalized adjustments</span>
                   </li>
                 </ul>
@@ -328,7 +328,7 @@ export default function PainFreeSalah() {
 
               <button
                 onClick={handleCommitment}
-                className="w-full p-5 rounded-xl bg-primary hover:bg-primary/90 text-white font-bold text-lg transition-all duration-200 hover:scale-[1.02] active:scale-[0.98]"
+                className="w-full p-5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-lg transition-all duration-200 hover:scale-[1.02] active:scale-[0.98]"
               >
                 Yes, I'm Ready to Pray Pain-Free
               </button>
