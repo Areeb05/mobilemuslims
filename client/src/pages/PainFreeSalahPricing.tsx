@@ -47,7 +47,7 @@ export default function PainFreeSalahPricing() {
         <p className="text-gray-400 mb-4">Please complete the survey first.</p>
         <Link
           to="/painfreesalah"
-          className="text-primary hover:underline"
+          className="text-emerald-500 hover:underline"
         >
           Start Survey
         </Link>
@@ -155,9 +155,9 @@ export default function PainFreeSalahPricing() {
         {/* Pricing Cards */}
         <div className="space-y-4 mb-8">
           {/* Lifetime - Best Value */}
-          <div className="relative bg-gradient-to-br from-primary/20 to-primary/5 border-2 border-primary rounded-2xl p-6">
+          <div className="relative bg-gradient-to-br from-emerald-600/20 to-emerald-600/5 border-2 border-emerald-500 rounded-2xl p-6">
             <div className="absolute -top-3 left-1/2 -translate-x-1/2">
-              <span className="bg-primary text-white text-xs font-bold px-3 py-1 rounded-full">
+              <span className="bg-emerald-600 text-white text-xs font-bold px-3 py-1 rounded-full">
                 BEST VALUE
               </span>
             </div>
@@ -175,19 +175,19 @@ export default function PainFreeSalahPricing() {
 
             <ul className="space-y-2 mb-6">
               <li className="flex items-center gap-2 text-sm">
-                <Check className="h-4 w-4 text-primary flex-shrink-0" />
+                <Check className="h-4 w-4 text-emerald-500 flex-shrink-0" />
                 <span>All exercises & video tutorials</span>
               </li>
               <li className="flex items-center gap-2 text-sm">
-                <Check className="h-4 w-4 text-primary flex-shrink-0" />
+                <Check className="h-4 w-4 text-emerald-500 flex-shrink-0" />
                 <span>Lifetime updates & new content</span>
               </li>
               <li className="flex items-center gap-2 text-sm">
-                <Check className="h-4 w-4 text-primary flex-shrink-0" />
+                <Check className="h-4 w-4 text-emerald-500 flex-shrink-0" />
                 <span>Personalized program for your pain points</span>
               </li>
               <li className="flex items-center gap-2 text-sm">
-                <Check className="h-4 w-4 text-primary flex-shrink-0" />
+                <Check className="h-4 w-4 text-emerald-500 flex-shrink-0" />
                 <span>Priority support</span>
               </li>
             </ul>
@@ -195,7 +195,7 @@ export default function PainFreeSalahPricing() {
             <button
               onClick={() => handleCheckout('lifetime')}
               disabled={loading !== null}
-              className="w-full py-4 bg-primary hover:bg-primary/90 rounded-xl font-bold text-lg transition-all duration-200 hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+              className="w-full py-4 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl font-bold text-lg transition-all duration-200 hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
             >
               {loading === 'lifetime' ? (
                 <span className="animate-pulse">Processing...</span>
@@ -312,7 +312,7 @@ export default function PainFreeSalahPricing() {
 
         {/* FAQ */}
         <div className="text-center text-sm text-gray-400">
-          <p>Questions? Contact us at <a href="mailto:support@mobilemuslims.com" className="text-primary hover:underline">support@mobilemuslims.com</a></p>
+          <p>Questions? Contact us at <a href="mailto:support@mobilemuslims.com" className="text-emerald-500 hover:underline">support@mobilemuslims.com</a></p>
         </div>
       </div>
     </div>
