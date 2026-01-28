@@ -26,6 +26,13 @@ const io = new Server(server, {
 // Middleware
 app.use(helmet())
 app.use(cors())
+
+// Stripe webhooks need raw body for signature verification
+// Must be before express.json() middleware
+app.use('/api/painfreesalah/webhook', express.raw({ type: 'application/json' }))
+app.use('/api/donations/webhook', express.raw({ type: 'application/json' }))
+
+// JSON parsing for all other routes
 app.use(express.json())
 
 // Serve static files from client build (for production)
@@ -52,6 +59,10 @@ app.use('/api/donations', donationRoutes)
 // Pain Free Salah routes
 import painfreesalahRoutes from './routes/painfreesalah.js'
 app.use('/api/painfreesalah', painfreesalahRoutes)
+
+// AI Trainer routes
+import aiTrainerRoutes from './routes/ai-trainer.js'
+app.use('/api/ai-trainer', aiTrainerRoutes)
 
 // Import and setup WebSocket handlers
 import { setupSocketHandlers } from './routes/stream.js'
