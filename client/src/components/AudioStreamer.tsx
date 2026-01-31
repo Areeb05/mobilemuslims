@@ -414,23 +414,8 @@ export default function AudioStreamer({ endpoint = '/api/stream' }: AudioStreame
 
       {/* Main Interface */}
       <div className="flex flex-col gap-3 md:gap-4 w-full max-w-6xl mx-auto">
-        {/* Top Row: Server Status + Settings + Recording Control */}
+        {/* Top Row: Settings + Recording Control + Server Status */}
         <div className="flex items-center justify-center gap-3 flex-wrap">
-          <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-            <span>Server:</span>
-            <span 
-              className={`h-2 w-2 rounded-full ${
-                connectionStatus === 'connected' 
-                  ? 'bg-emerald-500' 
-                  : connectionStatus === 'connecting'
-                    ? 'bg-yellow-500 animate-pulse'
-                    : 'bg-red-500'
-              }`}
-              aria-label={connectionStatus === 'connected' ? 'Connected' :
-                          connectionStatus === 'connecting' ? 'Connecting' : 'Disconnected'}
-            />
-          </div>
-
           <QuranSettings />
           
           <Button
@@ -454,6 +439,21 @@ export default function AudioStreamer({ endpoint = '/api/stream' }: AudioStreame
               </>
             )}
           </Button>
+
+          <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+            <span>Server:</span>
+            <span 
+              className={`h-2 w-2 rounded-full ${
+                connectionStatus === 'connected' 
+                  ? 'bg-emerald-500' 
+                  : connectionStatus === 'connecting'
+                    ? 'bg-yellow-500 animate-pulse'
+                    : 'bg-red-500'
+              }`}
+              aria-label={connectionStatus === 'connected' ? 'Connected' :
+                          connectionStatus === 'connecting' ? 'Connecting' : 'Disconnected'}
+            />
+          </div>
         </div>
 
         {/* Mode Toggle */}
