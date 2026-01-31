@@ -2,7 +2,7 @@ import { SpeechClient } from '@google-cloud/speech'
 import { v2 as cloudTranslate } from '@google-cloud/translate'
 import type { Server, Socket } from 'socket.io'
 import dotenv from 'dotenv'
-import { searchVerse, type QuranMatch } from '../lib/quran-api.js'
+import { searchVerse } from '../lib/quran-api.js'
 
 // Load environment variables for this module
 dotenv.config()
