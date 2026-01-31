@@ -14,11 +14,22 @@ import { fileURLToPath } from 'url'
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
 
+// Get client URL with Railway fallback
+const getClientUrl = (): string => {
+  if (process.env.CLIENT_URL) {
+    return process.env.CLIENT_URL
+  }
+  if (process.env.RAILWAY_PUBLIC_DOMAIN) {
+    return `https://${process.env.RAILWAY_PUBLIC_DOMAIN}`
+  }
+  return 'http://localhost:3000'
+}
+
 const app = express()
 const server = createServer(app)
 const io = new Server(server, {
   cors: {
-    origin: process.env.CLIENT_URL || 'http://localhost:3000',
+    origin: getClientUrl(),
     methods: ['GET', 'POST']
   }
 })
@@ -73,7 +84,7 @@ server.listen(PORT, () => {
   console.log(`🚀 API Server running on port ${PORT}`)
   console.log(`📡 WebSocket server ready`)
   console.log(`🌍 Environment: ${process.env.NODE_ENV || 'development'}`)
-  console.log(`🔗 Client URL: ${process.env.CLIENT_URL || 'http://localhost:3000'}`)
+  console.log(`🔗 Client URL: ${getClientUrl()}`)
 })
 
 // Graceful shutdown

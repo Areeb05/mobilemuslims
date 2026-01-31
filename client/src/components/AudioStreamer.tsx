@@ -8,21 +8,8 @@ import { Button } from './ui/button'
 import { ModeToggle } from './ModeToggle'
 import { QuranSettings } from './QuranSettings'
 import { useQuranSettings, TRANSLATION_EDITIONS } from '@/contexts/QuranSettingsContext'
-
-/**
- * Quran match data from server.
- */
-interface QuranMatch {
-  found: boolean
-  surah: number
-  surahName: string
-  surahNameArabic: string
-  ayah: number
-  arabicText: string
-  translation: string
-  edition: string
-  confidence: number
-}
+import { useSpeechRecognition } from '@/lib/hooks/use-speech-recognition'
+import { searchVerse, preloadQuranMatcher, type QuranMatch } from '@/lib/quran-matcher'
 
 interface AudioStreamerProps {
   endpoint?: string
@@ -39,9 +26,18 @@ export default function AudioStreamer({ endpoint = '/api/stream' }: AudioStreame
   // Quran mode state
   const [quranMatch, setQuranMatch] = useState<QuranMatch | null>(null)
   const [isVerified, setIsVerified] = useState(true)
+  const [isSearching, setIsSearching] = useState(false)
+  const [quranDataLoaded, setQuranDataLoaded] = useState(false)
   
   // Settings context
   const { settings, setMode } = useQuranSettings()
+  
+  // Web Speech API for Quran mode (client-side)
+  const speechRecognition = useSpeechRecognition({
+    language: 'ar-SA',
+    continuous: true,
+    interimResults: true
+  })
 
   const socketRef = useRef<Socket | null>(null)
   const mediaRecorderRef = useRef<MediaRecorder | null>(null)
@@ -52,6 +48,71 @@ export default function AudioStreamer({ endpoint = '/api/stream' }: AudioStreame
   const englishScrollRef = useRef<HTMLDivElement | null>(null)
   const fullscreenScrollRef = useRef<HTMLDivElement | null>(null)
   const wakeLockRef = useRef<WakeLockSentinel | null>(null)
+  const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+
+  // Preload Quran data on mount for faster matching
+  useEffect(() => {
+    preloadQuranMatcher(settings.edition)
+      .then(() => {
+        setQuranDataLoaded(true)
+        console.log('Quran data preloaded for client-side matching')
+      })
+      .catch(err => {
+        console.error('Failed to preload Quran data:', err)
+      })
+  }, [settings.edition])
+
+  // Sync Web Speech API transcript for Quran mode
+  useEffect(() => {
+    if (settings.mode === 'quran' && speechRecognition.transcript) {
+      setTranscription(speechRecognition.transcript)
+    }
+  }, [settings.mode, speechRecognition.transcript])
+
+  // Handle speech recognition errors
+  useEffect(() => {
+    if (settings.mode === 'quran' && speechRecognition.error) {
+      setError(speechRecognition.error)
+    }
+  }, [settings.mode, speechRecognition.error])
+
+  // Client-side verse matching for Quran mode
+  useEffect(() => {
+    if (settings.mode !== 'quran' || !transcription || transcription.length < 5) {
+      return
+    }
+
+    // Debounce the search to avoid excessive calls
+    if (searchTimeoutRef.current) {
+      clearTimeout(searchTimeoutRef.current)
+    }
+
+    searchTimeoutRef.current = setTimeout(async () => {
+      setIsSearching(true)
+      try {
+        const match = await searchVerse(transcription, settings.edition)
+        if (match) {
+          setQuranMatch(match)
+          setTranslation(match.translation)
+          setIsVerified(true)
+        } else {
+          // No match found - keep transcription but show unverified
+          setIsVerified(false)
+          setQuranMatch(null)
+        }
+      } catch (err) {
+        console.error('Error searching verse:', err)
+      } finally {
+        setIsSearching(false)
+      }
+    }, 300) // 300ms debounce
+
+    return () => {
+      if (searchTimeoutRef.current) {
+        clearTimeout(searchTimeoutRef.current)
+      }
+    }
+  }, [transcription, settings.mode, settings.edition])
 
   // Auto-scroll Arabic panel to bottom when new transcription arrives
   useEffect(() => {
@@ -165,6 +226,7 @@ export default function AudioStreamer({ endpoint = '/api/stream' }: AudioStreame
       setTranslation('')
       setQuranMatch(null)
       setIsVerified(true)
+      setError('')
 
       // Request screen wake lock to keep screen on during prayer
       if ('wakeLock' in navigator) {
@@ -174,6 +236,26 @@ export default function AudioStreamer({ endpoint = '/api/stream' }: AudioStreame
         } catch (wakeLockErr) {
           console.warn('Wake lock not available:', wakeLockErr)
         }
+      }
+
+      // QURAN MODE: Use Web Speech API (fully client-side)
+      if (settings.mode === 'quran') {
+        if (!speechRecognition.isSupported) {
+          setError('Speech recognition is not supported in this browser. Please use Chrome or Edge.')
+          return
+        }
+
+        speechRecognition.resetTranscript()
+        speechRecognition.startListening()
+        setIsRecording(true)
+        console.log('Started client-side speech recognition for Quran mode')
+        return
+      }
+
+      // DUA MODE: Use server-side processing via WebSocket
+      if (connectionStatus !== 'connected') {
+        setError('Not connected to server. Please wait or refresh.')
+        return
       }
 
       // Enhanced mobile-optimized audio constraints
@@ -204,7 +286,6 @@ export default function AudioStreamer({ endpoint = '/api/stream' }: AudioStreame
 
       const stream = await navigator.mediaDevices.getUserMedia(constraints)
       setIsRecording(true)
-      setError('')
 
       // Use modern AudioWorklet API instead of deprecated ScriptProcessor
       audioContextRef.current = new (window.AudioContext || (window as any).webkitAudioContext)({
@@ -272,7 +353,7 @@ export default function AudioStreamer({ endpoint = '/api/stream' }: AudioStreame
     }
   }
 
-  const stopRecording = () => {
+  const stopRecording = useCallback(() => {
     setIsRecording(false)
 
     // Release screen wake lock
@@ -282,6 +363,12 @@ export default function AudioStreamer({ endpoint = '/api/stream' }: AudioStreame
       console.log('Screen wake lock released')
     }
 
+    // Stop Web Speech API for Quran mode
+    if (speechRecognition.isListening) {
+      speechRecognition.stopListening()
+    }
+
+    // Stop server-side audio processing for Dua mode
     if (mediaRecorderRef.current) {
       mediaRecorderRef.current.stop()
       mediaRecorderRef.current = null
@@ -301,7 +388,7 @@ export default function AudioStreamer({ endpoint = '/api/stream' }: AudioStreame
       audioContextRef.current.close()
       audioContextRef.current = null
     }
-  }
+  }, [speechRecognition])
 
   const toggleRecording = () => {
     if (isRecording) {
@@ -414,7 +501,7 @@ export default function AudioStreamer({ endpoint = '/api/stream' }: AudioStreame
 
       {/* Main Interface */}
       <div className="flex flex-col gap-3 md:gap-4 w-full max-w-6xl mx-auto">
-        {/* Top Row: Settings + Recording Control + Server Status */}
+        {/* Top Row: Settings + Recording Control + Status */}
         <div className="flex items-center justify-center gap-3 flex-wrap">
           <QuranSettings />
           
@@ -423,9 +510,13 @@ export default function AudioStreamer({ endpoint = '/api/stream' }: AudioStreame
             variant={isRecording ? "destructive" : "default"}
             size="sm"
             className={`flex items-center gap-2 px-4 py-2 rounded-full font-medium transition-all duration-300 touch-manipulation active:scale-95 ${
-              connectionStatus !== 'connected' ? 'opacity-50 cursor-not-allowed' : 'hover:scale-105'
+              // In Quran mode, only need speech recognition support
+              // In Dua mode, need server connection
+              (settings.mode === 'quran' ? !speechRecognition.isSupported : connectionStatus !== 'connected')
+                ? 'opacity-50 cursor-not-allowed' 
+                : 'hover:scale-105'
             }`}
-            disabled={connectionStatus !== 'connected'}
+            disabled={settings.mode === 'quran' ? !speechRecognition.isSupported : connectionStatus !== 'connected'}
           >
             {isRecording ? (
               <>
@@ -440,20 +531,38 @@ export default function AudioStreamer({ endpoint = '/api/stream' }: AudioStreame
             )}
           </Button>
 
-          <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-            <span>Server:</span>
-            <span 
-              className={`h-2 w-2 rounded-full ${
-                connectionStatus === 'connected' 
-                  ? 'bg-emerald-500' 
-                  : connectionStatus === 'connecting'
-                    ? 'bg-yellow-500 animate-pulse'
-                    : 'bg-red-500'
-              }`}
-              aria-label={connectionStatus === 'connected' ? 'Connected' :
-                          connectionStatus === 'connecting' ? 'Connecting' : 'Disconnected'}
-            />
-          </div>
+          {/* Status indicator - different for each mode */}
+          {settings.mode === 'quran' ? (
+            // Quran mode: Show client-side status (no server needed)
+            <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+              <span>Local:</span>
+              <span 
+                className={`h-2 w-2 rounded-full ${
+                  quranDataLoaded && speechRecognition.isSupported
+                    ? 'bg-emerald-500' 
+                    : 'bg-yellow-500 animate-pulse'
+                }`}
+                aria-label={quranDataLoaded ? 'Ready' : 'Loading...'}
+              />
+              {isSearching && <span className="text-yellow-400 animate-pulse">matching...</span>}
+            </div>
+          ) : (
+            // Dua mode: Show server connection status
+            <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+              <span>Server:</span>
+              <span 
+                className={`h-2 w-2 rounded-full ${
+                  connectionStatus === 'connected' 
+                    ? 'bg-emerald-500' 
+                    : connectionStatus === 'connecting'
+                      ? 'bg-yellow-500 animate-pulse'
+                      : 'bg-red-500'
+                }`}
+                aria-label={connectionStatus === 'connected' ? 'Connected' :
+                            connectionStatus === 'connecting' ? 'Connecting' : 'Disconnected'}
+              />
+            </div>
+          )}
         </div>
 
         {/* Mode Toggle */}
@@ -461,7 +570,7 @@ export default function AudioStreamer({ endpoint = '/api/stream' }: AudioStreame
           <ModeToggle
             mode={settings.mode}
             onChange={handleModeChange}
-            disabled={connectionStatus !== 'connected'}
+            disabled={false}
           />
         </div>
 
@@ -573,9 +682,14 @@ export default function AudioStreamer({ endpoint = '/api/stream' }: AudioStreame
         <div className="text-center text-white/50 text-xs">
           <p>
             {settings.mode === 'quran'
-              ? 'Tap record and recite Quran for verified translation'
-              : 'Tap record and speak in Arabic'}
+              ? 'Tap record and recite Quran (works offline, no server needed)'
+              : 'Tap record and speak in Arabic (requires server connection)'}
           </p>
+          {settings.mode === 'quran' && !speechRecognition.isSupported && (
+            <p className="text-yellow-400 mt-1">
+              Speech recognition not supported. Please use Chrome or Edge.
+            </p>
+          )}
         </div>
       </div>
     </>
