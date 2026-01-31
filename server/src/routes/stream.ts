@@ -2,9 +2,28 @@ import { SpeechClient } from '@google-cloud/speech'
 import { v2 as cloudTranslate } from '@google-cloud/translate'
 import type { Server, Socket } from 'socket.io'
 import dotenv from 'dotenv'
+import { searchVerse, type QuranMatch } from '../lib/quran-api.js'
 
 // Load environment variables for this module
 dotenv.config()
+
+/**
+ * Settings for Quran mode per client connection.
+ */
+interface ClientSettings {
+  mode: 'quran' | 'dua'
+  edition: string
+  showVerseRef: boolean
+}
+
+/**
+ * Default settings for new connections.
+ */
+const DEFAULT_SETTINGS: ClientSettings = {
+  mode: 'quran',
+  edition: process.env.QURAN_DEFAULT_EDITION || 'en.sahih',
+  showVerseRef: true,
+}
 
 // Safety net: Catch unhandled errors from orphaned gRPC streams
 // This prevents server crashes when Google's Speech API times out after client disconnect
@@ -60,6 +79,10 @@ export function setupSocketHandlers(io: Server) {
     let recognizeStream: any = null
     let isClientConnected = true
     let streamRecreationTimeout: NodeJS.Timeout | null = null
+
+    // Per-client settings for Quran/Dua mode
+    let clientSettings: ClientSettings = { ...DEFAULT_SETTINGS }
+    let lastProcessedTranscription = '' // Track to avoid duplicate processing
 
     // Speech recognition config - reused for stream recreation
     const speechConfig = {
@@ -148,12 +171,42 @@ export function setupSocketHandlers(io: Server) {
       // Note: 'latest_long' and 'useEnhanced' are NOT supported for Arabic (ar-XA)
       createRecognizeStream()
 
-      // Translate every 500ms
+      // Translate every 500ms with Quran/Dua mode support
       translationInterval = setInterval(async () => {
-        if (latestTranscription && translateClient) {
+        if (
+          latestTranscription &&
+          translateClient &&
+          latestTranscription !== lastProcessedTranscription
+        ) {
+          lastProcessedTranscription = latestTranscription
+
           try {
-            const [translation] = await translateClient.translate(latestTranscription, 'en')
-            socket.emit('translation', translation)
+            if (clientSettings.mode === 'quran') {
+              // Quran mode: Search for matching verse first
+              const quranMatch = await searchVerse(
+                latestTranscription,
+                clientSettings.edition
+              )
+
+              if (quranMatch && quranMatch.found && quranMatch.confidence >= 0.7) {
+                // Found a matching Quran verse - emit verified translation
+                socket.emit('quranMatch', quranMatch)
+              } else {
+                // No match found - fallback to Google Translate with unverified flag
+                const [translation] = await translateClient.translate(
+                  latestTranscription,
+                  'en'
+                )
+                socket.emit('translation', { text: translation, verified: false })
+              }
+            } else {
+              // Dua mode: Use Google Translate directly
+              const [translation] = await translateClient.translate(
+                latestTranscription,
+                'en'
+              )
+              socket.emit('translation', { text: translation, verified: true })
+            }
           } catch (err) {
             console.error('🌐 Translation error:', err)
           }
@@ -163,17 +216,45 @@ export function setupSocketHandlers(io: Server) {
       // Demo mode - simulate transcription
       console.log('🎭 Running in demo mode for client:', socket.id)
 
-      // Simulate some demo transcription
+      // Simulate some demo transcription with Quran verse
       setTimeout(() => {
-        latestTranscription = 'مرحبا بالعالم'
+        latestTranscription = 'بسم الله الرحمن الرحيم'
         socket.emit('transcription', latestTranscription)
       }, 2000)
 
-      // Mock translation for demo purposes
-      translationInterval = setInterval(() => {
-        if (latestTranscription) {
-          const mockTranslation = latestTranscription + ' (Demo Translation)'
-          socket.emit('translation', mockTranslation)
+      // Mock translation for demo purposes with mode support
+      translationInterval = setInterval(async () => {
+        if (latestTranscription && latestTranscription !== lastProcessedTranscription) {
+          lastProcessedTranscription = latestTranscription
+
+          if (clientSettings.mode === 'quran') {
+            // Try to match with Quran API even in demo mode
+            try {
+              const quranMatch = await searchVerse(
+                latestTranscription,
+                clientSettings.edition
+              )
+
+              if (quranMatch && quranMatch.found && quranMatch.confidence >= 0.7) {
+                socket.emit('quranMatch', quranMatch)
+              } else {
+                socket.emit('translation', {
+                  text: latestTranscription + ' (Demo - No Quran Match)',
+                  verified: false,
+                })
+              }
+            } catch {
+              socket.emit('translation', {
+                text: latestTranscription + ' (Demo Translation)',
+                verified: false,
+              })
+            }
+          } else {
+            socket.emit('translation', {
+              text: latestTranscription + ' (Demo Translation)',
+              verified: true,
+            })
+          }
         }
       }, 1000)
     }
@@ -189,6 +270,32 @@ export function setupSocketHandlers(io: Server) {
         // In demo mode, just acknowledge audio data
         console.log('🎭 Demo mode: Received audio data from client')
       }
+    })
+
+    // Handle mode change (Quran/Dua toggle)
+    socket.on('setMode', (data: { mode: 'quran' | 'dua' }) => {
+      if (data.mode === 'quran' || data.mode === 'dua') {
+        clientSettings.mode = data.mode
+        console.log(`🔄 Client ${socket.id} switched to ${data.mode} mode`)
+        // Reset last processed to force re-translation with new mode
+        lastProcessedTranscription = ''
+      }
+    })
+
+    // Handle settings change
+    socket.on('setSettings', (settings: Partial<ClientSettings>) => {
+      if (settings.edition) {
+        clientSettings.edition = settings.edition
+      }
+      if (typeof settings.showVerseRef === 'boolean') {
+        clientSettings.showVerseRef = settings.showVerseRef
+      }
+      if (settings.mode === 'quran' || settings.mode === 'dua') {
+        clientSettings.mode = settings.mode
+      }
+      console.log(`⚙️ Client ${socket.id} updated settings:`, clientSettings)
+      // Reset last processed to force re-translation with new settings
+      lastProcessedTranscription = ''
     })
 
     socket.on('disconnect', () => {

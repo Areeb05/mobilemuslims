@@ -1,11 +1,29 @@
-import { useEffect, useState, useRef } from 'react'
+import { useEffect, useState, useRef, useCallback } from 'react'
 import { io, Socket } from 'socket.io-client'
-import { Mic, Square, Volume2, Maximize2, X } from 'lucide-react'
+import { Mic, Square, Volume2, Maximize2, X, CheckCircle, AlertTriangle } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card'
 import { Badge } from './ui/badge'
 import { Alert, AlertDescription } from './ui/alert'
 import { Avatar, AvatarFallback } from './ui/avatar'
 import { Button } from './ui/button'
+import { ModeToggle } from './ModeToggle'
+import { QuranSettings } from './QuranSettings'
+import { useQuranSettings, TRANSLATION_EDITIONS } from '@/contexts/QuranSettingsContext'
+
+/**
+ * Quran match data from server.
+ */
+interface QuranMatch {
+  found: boolean
+  surah: number
+  surahName: string
+  surahNameArabic: string
+  ayah: number
+  arabicText: string
+  translation: string
+  edition: string
+  confidence: number
+}
 
 interface AudioStreamerProps {
   endpoint?: string
@@ -18,6 +36,13 @@ export default function AudioStreamer({ endpoint = '/api/stream' }: AudioStreame
   const [error, setError] = useState('')
   const [connectionStatus, setConnectionStatus] = useState<'connecting' | 'connected' | 'disconnected'>('connecting')
   const [fullscreenMode, setFullscreenMode] = useState<'arabic' | 'english' | null>(null)
+  
+  // Quran mode state
+  const [quranMatch, setQuranMatch] = useState<QuranMatch | null>(null)
+  const [isVerified, setIsVerified] = useState(true)
+  
+  // Settings context
+  const { settings, setMode } = useQuranSettings()
 
   const socketRef = useRef<Socket | null>(null)
   const mediaRecorderRef = useRef<MediaRecorder | null>(null)
@@ -77,8 +102,24 @@ export default function AudioStreamer({ endpoint = '/api/stream' }: AudioStreame
       setTranscription(data)
     })
 
-    socketRef.current.on('translation', (data: string) => {
-      setTranslation(data)
+    // Handle translation (may be string for backward compat or object with verified flag)
+    socketRef.current.on('translation', (data: string | { text: string; verified: boolean }) => {
+      if (typeof data === 'object' && data !== null) {
+        setTranslation(data.text)
+        setIsVerified(data.verified)
+        setQuranMatch(null) // Clear Quran match when using Google Translate
+      } else {
+        setTranslation(data)
+        setIsVerified(true)
+        setQuranMatch(null)
+      }
+    })
+
+    // Handle verified Quran match
+    socketRef.current.on('quranMatch', (data: QuranMatch) => {
+      setQuranMatch(data)
+      setTranslation(data.translation)
+      setIsVerified(true)
     })
 
     socketRef.current.on('error', (err: string) => {
@@ -100,6 +141,23 @@ export default function AudioStreamer({ endpoint = '/api/stream' }: AudioStreame
       stopRecording()
     }
   }, [endpoint])
+
+  // Send mode changes to server
+  const handleModeChange = useCallback((newMode: 'quran' | 'dua') => {
+    setMode(newMode)
+    // Clear current match when switching modes
+    setQuranMatch(null)
+    if (socketRef.current?.connected) {
+      socketRef.current.emit('setMode', { mode: newMode })
+    }
+  }, [setMode])
+
+  // Send settings changes to server when they change
+  useEffect(() => {
+    if (socketRef.current?.connected) {
+      socketRef.current.emit('setSettings', settings)
+    }
+  }, [settings])
 
   const startRecording = async () => {
     try {
@@ -319,8 +377,8 @@ export default function AudioStreamer({ endpoint = '/api/stream' }: AudioStreame
 
       {/* Main Interface */}
       <div className="flex flex-col gap-3 md:gap-4 w-full max-w-6xl mx-auto">
-        {/* Top Row: Server Status + Recording Control */}
-        <div className="flex items-center justify-center gap-3">
+        {/* Top Row: Server Status + Settings + Recording Control */}
+        <div className="flex items-center justify-center gap-3 flex-wrap">
           <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
             <span>Server:</span>
             <Badge 
@@ -331,6 +389,8 @@ export default function AudioStreamer({ endpoint = '/api/stream' }: AudioStreame
                connectionStatus === 'connecting' ? 'Connecting...' : 'Disconnected'}
             </Badge>
           </div>
+
+          <QuranSettings />
           
           <Button
             onClick={toggleRecording}
@@ -355,6 +415,15 @@ export default function AudioStreamer({ endpoint = '/api/stream' }: AudioStreame
           </Button>
         </div>
 
+        {/* Mode Toggle */}
+        <div className="flex justify-center">
+          <ModeToggle
+            mode={settings.mode}
+            onChange={handleModeChange}
+            disabled={connectionStatus !== 'connected'}
+          />
+        </div>
+
         {/* Error Display */}
         {error && (
           <Alert variant="destructive" className="max-w-md mx-auto">
@@ -375,6 +444,12 @@ export default function AudioStreamer({ endpoint = '/api/stream' }: AudioStreame
                     </AvatarFallback>
                   </Avatar>
                   <CardTitle className="text-base">Arabic</CardTitle>
+                  {/* Verse reference badge */}
+                  {quranMatch && settings.showVerseRef && (
+                    <Badge variant="outline" className="text-xs bg-primary/10 border-primary/30">
+                      {quranMatch.surahName} {quranMatch.surah}:{quranMatch.ayah}
+                    </Badge>
+                  )}
                 </div>
                 <button
                   onClick={() => enterFullscreen('arabic')}
@@ -408,6 +483,14 @@ export default function AudioStreamer({ endpoint = '/api/stream' }: AudioStreame
                     </AvatarFallback>
                   </Avatar>
                   <CardTitle className="text-base">English</CardTitle>
+                  {/* Verification indicator */}
+                  {settings.mode === 'quran' && translation && (
+                    isVerified ? (
+                      <CheckCircle className="h-4 w-4 text-green-500" aria-label="Verified Quran translation" />
+                    ) : (
+                      <AlertTriangle className="h-4 w-4 text-yellow-500" aria-label="Unverified translation" />
+                    )
+                  )}
                 </div>
                 <button
                   onClick={() => enterFullscreen('english')}
@@ -426,6 +509,12 @@ export default function AudioStreamer({ endpoint = '/api/stream' }: AudioStreame
                 <p className="text-foreground text-lg md:text-xl leading-relaxed text-center whitespace-pre-wrap max-w-full">
                   {translation || 'Translation will appear here...'}
                 </p>
+                {/* Edition attribution for Quran matches */}
+                {quranMatch && (
+                  <p className="text-xs text-muted-foreground text-center mt-2">
+                    [{TRANSLATION_EDITIONS.find(e => e.code === quranMatch.edition)?.name || quranMatch.edition}]
+                  </p>
+                )}
               </div>
             </CardContent>
           </Card>
@@ -433,7 +522,11 @@ export default function AudioStreamer({ endpoint = '/api/stream' }: AudioStreame
 
         {/* Minimal Instructions */}
         <div className="text-center text-white/50 text-xs">
-          <p>Tap record and speak in Arabic</p>
+          <p>
+            {settings.mode === 'quran'
+              ? 'Tap record and recite Quran for verified translation'
+              : 'Tap record and speak in Arabic'}
+          </p>
         </div>
       </div>
     </>
