@@ -13,15 +13,18 @@ import {
 } from 'react'
 
 /**
- * Available translation editions from alquran.cloud API.
+ * Available translation editions with local data files.
+ * Only editions with generated JSON files in public/quran/ are included.
  */
 export const TRANSLATION_EDITIONS = [
   { code: 'en.sahih', name: 'Sahih International' },
-  { code: 'en.pickthall', name: 'Pickthall' },
   { code: 'en.yusufali', name: 'Yusuf Ali' },
-  { code: 'en.asad', name: 'Muhammad Asad' },
-  { code: 'en.hilali', name: 'Muhsin Khan' },
 ] as const
+
+/**
+ * Valid edition codes for validation.
+ */
+const VALID_EDITION_CODES = TRANSLATION_EDITIONS.map((e) => e.code) as readonly string[]
 
 /**
  * Settings schema for Quran mode.
@@ -72,6 +75,10 @@ function readSettingsFromCookie(): QuranSettings | null {
       typeof parsed.edition === 'string' &&
       typeof parsed.showVerseRef === 'boolean'
     ) {
+      // Validate edition code is available, fall back to default if not
+      if (!VALID_EDITION_CODES.includes(parsed.edition)) {
+        parsed.edition = DEFAULT_SETTINGS.edition
+      }
       return parsed as QuranSettings
     }
 

@@ -1,4 +1,5 @@
 import AudioStreamer from '../components/AudioStreamer'
+import { ErrorBoundary } from '../components/ErrorBoundary'
 import { QuranSettingsProvider } from '../contexts/QuranSettingsContext'
 
 export default function UnderstandSalah() {
@@ -15,8 +16,14 @@ export default function UnderstandSalah() {
           </p>
         </div>
 
-        {/* Audio Streamer - Main Content */}
-        <AudioStreamer />
+        {/* Audio Streamer - Main Content wrapped with Error Boundary */}
+        <ErrorBoundary
+          onError={(error, errorInfo) => {
+            console.error('AudioStreamer error:', error.message, errorInfo.componentStack)
+          }}
+        >
+          <AudioStreamer />
+        </ErrorBoundary>
       </div>
     </QuranSettingsProvider>
   )

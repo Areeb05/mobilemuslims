@@ -130,6 +130,7 @@ export function useSpeechRecognition(
   const [error, setError] = useState<string | null>(null)
 
   const recognitionRef = useRef<SpeechRecognitionInstance | null>(null)
+  const finalizedTranscriptRef = useRef<string>('')
   const SpeechRecognitionClass = getSpeechRecognition()
   const isSupported = SpeechRecognitionClass !== null
 
@@ -191,24 +192,32 @@ export function useSpeechRecognition(
 
       for (let i = event.resultIndex; i < event.results.length; i++) {
         const result = event.results[i]
-        if (result.isFinal) {
-          finalTranscript += result[0].transcript
-        } else {
-          interimTranscript += result[0].transcript
+        // Check bounds before accessing alternatives
+        if (result.length > 0) {
+          if (result.isFinal) {
+            finalTranscript += result[0].transcript
+          } else {
+            interimTranscript += result[0].transcript
+          }
         }
       }
 
-      // Combine final and interim transcripts
-      const newTranscript = finalTranscript || interimTranscript
-      if (newTranscript) {
-        setTranscript(prev => {
-          // If we have a final result, append it
-          if (finalTranscript) {
-            return prev ? `${prev} ${finalTranscript}`.trim() : finalTranscript
-          }
-          // For interim results, show the current recognition
-          return prev ? `${prev} ${interimTranscript}`.trim() : interimTranscript
-        })
+      // Handle final results - append to finalized transcript
+      if (finalTranscript) {
+        finalizedTranscriptRef.current = finalizedTranscriptRef.current
+          ? `${finalizedTranscriptRef.current} ${finalTranscript}`.trim()
+          : finalTranscript
+      }
+
+      // Update displayed transcript: finalized + current interim (replacing, not appending interim)
+      const displayTranscript = finalizedTranscriptRef.current
+        ? interimTranscript
+          ? `${finalizedTranscriptRef.current} ${interimTranscript}`.trim()
+          : finalizedTranscriptRef.current
+        : interimTranscript
+
+      if (displayTranscript || finalTranscript) {
+        setTranscript(displayTranscript)
       }
     }
 
@@ -236,6 +245,7 @@ export function useSpeechRecognition(
     // Clear previous transcript
     setTranscript('')
     setError(null)
+    finalizedTranscriptRef.current = ''
 
     // Create new recognition instance
     const recognition = initRecognition()
@@ -275,6 +285,7 @@ export function useSpeechRecognition(
   const resetTranscript = useCallback(() => {
     setTranscript('')
     setError(null)
+    finalizedTranscriptRef.current = ''
   }, [])
 
   /**
@@ -284,10 +295,12 @@ export function useSpeechRecognition(
     return () => {
       if (recognitionRef.current) {
         try {
-          recognitionRef.current.stop()
+          // Use abort() for cleanup as it's more immediate than stop()
+          recognitionRef.current.abort()
         } catch {
-          // Ignore errors when stopping
+          // Ignore errors when aborting
         }
+        recognitionRef.current = null
       }
     }
   }, [])

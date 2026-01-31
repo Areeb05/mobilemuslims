@@ -9,7 +9,19 @@ import { ModeToggle } from './ModeToggle'
 import { QuranSettings } from './QuranSettings'
 import { useQuranSettings, TRANSLATION_EDITIONS } from '@/contexts/QuranSettingsContext'
 import { useSpeechRecognition } from '@/lib/hooks/use-speech-recognition'
-import { searchVerse, preloadQuranMatcher, type QuranMatch } from '@/lib/quran-matcher'
+import { 
+  searchVerse, 
+  preloadQuranMatcher, 
+  matchAgainstExpected,
+  createFollowingState,
+  advanceFollowingState,
+  detectSurahChange,
+  analyzeEndOfSurah,
+  searchWithAlFatihaPriority,
+  LOCK_CONFIDENCE_THRESHOLD,
+  type QuranMatch,
+  type FollowingState
+} from '@/lib/quran-matcher'
 
 interface AudioStreamerProps {
   endpoint?: string
@@ -28,6 +40,10 @@ export default function AudioStreamer({ endpoint = '/api/stream' }: AudioStreame
   const [isVerified, setIsVerified] = useState(true)
   const [isSearching, setIsSearching] = useState(false)
   const [quranDataLoaded, setQuranDataLoaded] = useState(false)
+  
+  // Verse following state
+  const [followingState, setFollowingState] = useState<FollowingState | null>(null)
+  const [isFollowing, setIsFollowing] = useState(false)
   
   // Settings context
   const { settings, setMode } = useQuranSettings()
@@ -49,6 +65,7 @@ export default function AudioStreamer({ endpoint = '/api/stream' }: AudioStreame
   const fullscreenScrollRef = useRef<HTMLDivElement | null>(null)
   const wakeLockRef = useRef<WakeLockSentinel | null>(null)
   const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+  const searchIdRef = useRef<number>(0) // Counter to track and cancel stale searches
 
   // Preload Quran data on mount for faster matching
   useEffect(() => {
@@ -76,7 +93,9 @@ export default function AudioStreamer({ endpoint = '/api/stream' }: AudioStreame
     }
   }, [settings.mode, speechRecognition.error])
 
-  // Client-side verse matching for Quran mode
+  // Two-phase verse matching for Quran mode
+  // Phase 1 (Detection): Search all verses until high confidence match
+  // Phase 2 (Following): Match against expected verses, track progression
   useEffect(() => {
     if (settings.mode !== 'quran' || !transcription || transcription.length < 5) {
       return
@@ -87,23 +106,166 @@ export default function AudioStreamer({ endpoint = '/api/stream' }: AudioStreame
       clearTimeout(searchTimeoutRef.current)
     }
 
+    // Increment search ID to track this specific search
+    const currentSearchId = ++searchIdRef.current
+
     searchTimeoutRef.current = setTimeout(async () => {
+      // Check if this search is still current before starting
+      if (currentSearchId !== searchIdRef.current) {
+        return // A newer search has been initiated
+      }
+
       setIsSearching(true)
       try {
-        const match = await searchVerse(transcription, settings.edition)
-        if (match) {
-          setQuranMatch(match)
-          setTranslation(match.translation)
-          setIsVerified(true)
+        // FOLLOWING MODE: Match against expected verses
+        if (isFollowing && followingState) {
+          const expectedMatch = matchAgainstExpected(
+            transcription,
+            followingState.verses,
+            followingState.currentIndex
+          )
+
+          // Check if this search is still current after sync operation
+          if (currentSearchId !== searchIdRef.current) return
+
+          if (expectedMatch.matched) {
+            // Update position based on match result
+            if (expectedMatch.isCurrentVerse) {
+              // Still on current verse - no change needed
+              setIsVerified(true)
+            } else if (expectedMatch.isNextVerse || expectedMatch.isSkipAhead) {
+              // Moved to next verse or skipped ahead - advance state
+              const newState = await advanceFollowingState(
+                followingState,
+                expectedMatch.verseIndex,
+                settings.edition
+              )
+              
+              // Check if search is still current after async operation
+              if (currentSearchId !== searchIdRef.current) return
+
+              setFollowingState(newState)
+              
+              // Update quranMatch to reflect current verse
+              const currentVerse = newState.verses[newState.currentIndex]
+              if (currentVerse) {
+                setQuranMatch({
+                  found: true,
+                  surah: currentVerse.surah,
+                  ayah: currentVerse.ayah,
+                  surahName: currentVerse.surahName,
+                  surahNameArabic: currentVerse.surahNameArabic,
+                  arabicText: currentVerse.arabicText,
+                  translation: currentVerse.translation,
+                  edition: settings.edition,
+                  confidence: expectedMatch.confidence
+                })
+                setTranslation(currentVerse.translation)
+              }
+              setIsVerified(true)
+            }
+          } else {
+            // No match in expected verses - analyze end-of-surah situation
+            const endAnalysis = analyzeEndOfSurah(followingState, transcription)
+            
+            if (endAnalysis.isAtEnd || endAnalysis.isAlFatihaLikely) {
+              // At end of surah or Al-Fatiha detected - search with priority
+              console.log('End of surah detected or Al-Fatiha likely, searching with priority...')
+              
+              const priorityMatch = endAnalysis.isAlFatihaLikely
+                ? await searchWithAlFatihaPriority(transcription, settings.edition)
+                : await detectSurahChange(transcription, followingState.lockedPosition.surah, settings.edition)
+              
+              // Check if search is still current after async operation
+              if (currentSearchId !== searchIdRef.current) return
+
+              if (priorityMatch) {
+                // Found new surah - re-lock to new position
+                console.log('Surah transition detected:', priorityMatch.surahName, priorityMatch.surah + ':' + priorityMatch.ayah)
+                const newState = await createFollowingState(priorityMatch, settings.edition)
+                
+                // Check again after createFollowingState
+                if (currentSearchId !== searchIdRef.current) return
+
+                setFollowingState(newState)
+                setQuranMatch(priorityMatch)
+                setTranslation(priorityMatch.translation)
+                setIsVerified(true)
+              } else {
+                // No match found - show uncertain state but keep following
+                setIsVerified(false)
+              }
+            } else {
+              // Not at end - check for regular surah change
+              const surahChange = await detectSurahChange(
+                transcription,
+                followingState.lockedPosition.surah,
+                settings.edition
+              )
+
+              // Check if search is still current after async operation
+              if (currentSearchId !== searchIdRef.current) return
+
+              if (surahChange) {
+                // Detected new surah - re-lock to new position
+                console.log('Surah change detected:', surahChange.surahName)
+                const newState = await createFollowingState(surahChange, settings.edition)
+                
+                // Check again after createFollowingState
+                if (currentSearchId !== searchIdRef.current) return
+
+                setFollowingState(newState)
+                setQuranMatch(surahChange)
+                setTranslation(surahChange.translation)
+                setIsVerified(true)
+              } else {
+                // No match found - show uncertain state but keep following
+                setIsVerified(false)
+              }
+            }
+          }
         } else {
-          // No match found - keep transcription but show unverified
-          setIsVerified(false)
-          setQuranMatch(null)
+          // DETECTION MODE: Search all verses
+          const match = await searchVerse(transcription, settings.edition)
+          
+          // Check if search is still current after async operation
+          if (currentSearchId !== searchIdRef.current) return
+
+          if (match) {
+            setQuranMatch(match)
+            setTranslation(match.translation)
+            setIsVerified(true)
+
+            // Check if we should lock and start following
+            if (match.confidence >= LOCK_CONFIDENCE_THRESHOLD) {
+              console.log('High confidence match - locking to verse:', 
+                `${match.surahName} ${match.surah}:${match.ayah}`, 
+                `(${(match.confidence * 100).toFixed(1)}%)`
+              )
+              const newState = await createFollowingState(match, settings.edition)
+              
+              // Check again after createFollowingState
+              if (currentSearchId !== searchIdRef.current) return
+
+              setFollowingState(newState)
+              setIsFollowing(true)
+            }
+          } else {
+            // No match found - keep transcription but show unverified
+            setIsVerified(false)
+            setQuranMatch(null)
+          }
         }
       } catch (err) {
-        console.error('Error searching verse:', err)
+        // Only log error if this search is still current
+        if (currentSearchId === searchIdRef.current) {
+          console.error('Error in verse matching:', err)
+        }
       } finally {
-        setIsSearching(false)
+        // Only update searching state if this search is still current
+        if (currentSearchId === searchIdRef.current) {
+          setIsSearching(false)
+        }
       }
     }, 300) // 300ms debounce
 
@@ -112,7 +274,7 @@ export default function AudioStreamer({ endpoint = '/api/stream' }: AudioStreame
         clearTimeout(searchTimeoutRef.current)
       }
     }
-  }, [transcription, settings.mode, settings.edition])
+  }, [transcription, settings.mode, settings.edition, isFollowing, followingState])
 
   // Auto-scroll Arabic panel to bottom when new transcription arrives
   useEffect(() => {
@@ -141,29 +303,29 @@ export default function AudioStreamer({ endpoint = '/api/stream' }: AudioStreame
     // In development, connect to localhost:3001
     const socketUrl = import.meta.env.PROD ? '' : (import.meta.env.VITE_API_URL || 'http://localhost:3001')
     console.log('Attempting to connect to Socket.IO at:', socketUrl || 'same domain (production)')
-    socketRef.current = io(socketUrl, {
+    const socket = io(socketUrl, {
       transports: ['websocket'],
     })
+    socketRef.current = socket
 
-    // Socket event listeners
-    socketRef.current.on('connect', () => {
+    // Socket event handlers - defined as named functions for proper cleanup
+    const handleConnect = () => {
       console.log('Connected to Socket.IO server at:', socketUrl)
       setError('')
       setConnectionStatus('connected')
-    })
+    }
 
-    socketRef.current.on('connect_error', (err) => {
+    const handleConnectError = (err: Error) => {
       console.error('Socket.IO connection error:', err.message)
       setError('Connection failed: ' + err.message)
       setConnectionStatus('disconnected')
-    })
+    }
 
-    socketRef.current.on('transcription', (data: string) => {
+    const handleTranscription = (data: string) => {
       setTranscription(data)
-    })
+    }
 
-    // Handle translation (may be string for backward compat or object with verified flag)
-    socketRef.current.on('translation', (data: string | { text: string; verified: boolean }) => {
+    const handleTranslation = (data: string | { text: string; verified: boolean }) => {
       if (typeof data === 'object' && data !== null) {
         setTranslation(data.text)
         setIsVerified(data.verified)
@@ -173,40 +335,63 @@ export default function AudioStreamer({ endpoint = '/api/stream' }: AudioStreame
         setIsVerified(true)
         setQuranMatch(null)
       }
-    })
+    }
 
-    // Handle verified Quran match
-    socketRef.current.on('quranMatch', (data: QuranMatch) => {
+    const handleQuranMatch = (data: QuranMatch) => {
       setQuranMatch(data)
       setTranslation(data.translation)
       setIsVerified(true)
-    })
+    }
 
-    socketRef.current.on('error', (err: string) => {
+    const handleError = (err: string) => {
       setError(err)
       setConnectionStatus('disconnected')
-    })
+    }
 
-    socketRef.current.on('disconnect', (reason) => {
+    const handleDisconnect = (reason: string) => {
       console.log('Disconnected from Socket.IO server. Reason:', reason)
       setError('Disconnected from server: ' + reason)
       setConnectionStatus('disconnected')
-      stopRecording()
-    })
+    }
+
+    // Attach event listeners
+    socket.on('connect', handleConnect)
+    socket.on('connect_error', handleConnectError)
+    socket.on('transcription', handleTranscription)
+    socket.on('translation', handleTranslation)
+    socket.on('quranMatch', handleQuranMatch)
+    socket.on('error', handleError)
+    socket.on('disconnect', handleDisconnect)
 
     return () => {
-      if (socketRef.current) {
-        socketRef.current.disconnect()
+      // Remove all event listeners before disconnecting
+      socket.off('connect', handleConnect)
+      socket.off('connect_error', handleConnectError)
+      socket.off('transcription', handleTranscription)
+      socket.off('translation', handleTranslation)
+      socket.off('quranMatch', handleQuranMatch)
+      socket.off('error', handleError)
+      socket.off('disconnect', handleDisconnect)
+      
+      // Release wake lock if held
+      if (wakeLockRef.current) {
+        wakeLockRef.current.release().catch(() => {})
+        wakeLockRef.current = null
       }
-      stopRecording()
+      
+      // Disconnect socket
+      socket.disconnect()
+      socketRef.current = null
     }
   }, [endpoint])
 
   // Send mode changes to server
   const handleModeChange = useCallback((newMode: 'quran' | 'dua') => {
     setMode(newMode)
-    // Clear current match when switching modes
+    // Clear current match and following state when switching modes
     setQuranMatch(null)
+    setFollowingState(null)
+    setIsFollowing(false)
     if (socketRef.current?.connected) {
       socketRef.current.emit('setMode', { mode: newMode })
     }
@@ -227,6 +412,8 @@ export default function AudioStreamer({ endpoint = '/api/stream' }: AudioStreame
       setQuranMatch(null)
       setIsVerified(true)
       setError('')
+      setFollowingState(null)
+      setIsFollowing(false)
 
       // Request screen wake lock to keep screen on during prayer
       if ('wakeLock' in navigator) {
@@ -358,7 +545,9 @@ export default function AudioStreamer({ endpoint = '/api/stream' }: AudioStreame
 
     // Release screen wake lock
     if (wakeLockRef.current) {
-      wakeLockRef.current.release()
+      wakeLockRef.current.release().catch(() => {
+        // Ignore release errors
+      })
       wakeLockRef.current = null
       console.log('Screen wake lock released')
     }
@@ -370,22 +559,37 @@ export default function AudioStreamer({ endpoint = '/api/stream' }: AudioStreame
 
     // Stop server-side audio processing for Dua mode
     if (mediaRecorderRef.current) {
-      mediaRecorderRef.current.stop()
+      try {
+        mediaRecorderRef.current.stop()
+      } catch {
+        // Ignore errors when already stopped
+      }
       mediaRecorderRef.current = null
     }
 
+    // Disconnect audio nodes with error handling
     if (processorNodeRef.current) {
-      processorNodeRef.current.disconnect()
+      try {
+        processorNodeRef.current.disconnect()
+      } catch {
+        // Node may already be disconnected
+      }
       processorNodeRef.current = null
     }
 
     if (sourceNodeRef.current) {
-      sourceNodeRef.current.disconnect()
+      try {
+        sourceNodeRef.current.disconnect()
+      } catch {
+        // Node may already be disconnected
+      }
       sourceNodeRef.current = null
     }
 
     if (audioContextRef.current) {
-      audioContextRef.current.close()
+      audioContextRef.current.close().catch(() => {
+        // Ignore errors when closing context
+      })
       audioContextRef.current = null
     }
   }, [speechRecognition])
@@ -410,6 +614,14 @@ export default function AudioStreamer({ endpoint = '/api/stream' }: AudioStreame
     setFullscreenMode(null)
     document.body.style.overflow = 'auto'
   }
+
+  // Cleanup fullscreen overflow on unmount
+  useEffect(() => {
+    return () => {
+      // Restore body overflow if component unmounts while in fullscreen
+      document.body.style.overflow = 'auto'
+    }
+  }, [])
 
   // Get current fullscreen content
   const getFullscreenContent = () => {
@@ -442,8 +654,14 @@ export default function AudioStreamer({ endpoint = '/api/stream' }: AudioStreame
               <span className="text-white/60 text-sm">
                 {fullscreenMode === 'arabic' ? 'Arabic Transcription' : 'English Translation'}
               </span>
+              {/* Following mode indicator */}
+              {isFollowing && (
+                <span className="text-xs text-emerald-400 bg-emerald-400/10 px-2 py-0.5 rounded-full">
+                  Following
+                </span>
+              )}
               {/* Verification indicator in English fullscreen */}
-              {fullscreenMode === 'english' && settings.mode === 'quran' && translation && (
+              {fullscreenMode === 'english' && settings.mode === 'quran' && (translation || isFollowing) && (
                 <span className="flex items-center gap-1">
                   {isVerified ? (
                     <>
@@ -473,29 +691,78 @@ export default function AudioStreamer({ endpoint = '/api/stream' }: AudioStreame
             ref={fullscreenScrollRef}
             className="flex-1 overflow-y-auto p-6"
           >
-            <p 
-              className={`text-white text-2xl md:text-3xl lg:text-4xl leading-relaxed text-center whitespace-pre-wrap ${
-                fullscreenMode === 'arabic' ? 'font-arabic' : ''
-              }`}
-              dir={fullscreenMode === 'arabic' ? 'rtl' : 'ltr'}
-            >
-              {fullscreenContent.text}
-            </p>
+            {/* Multi-verse fullscreen view in following mode */}
+            {isFollowing && followingState ? (
+              <div className={`space-y-6 ${fullscreenMode === 'arabic' ? 'direction-rtl' : ''}`}
+                   dir={fullscreenMode === 'arabic' ? 'rtl' : 'ltr'}>
+                {followingState.verses.map((verse) => (
+                  <div 
+                    key={`${verse.surah}-${verse.ayah}-fs`}
+                    className={`p-4 rounded-xl transition-all duration-300 ${
+                      verse.isCurrent 
+                        ? 'bg-emerald-500/20 border-2 border-emerald-500/40' 
+                        : verse.isPast 
+                          ? 'opacity-40' 
+                          : 'opacity-70'
+                    }`}
+                  >
+                    <p 
+                      className={`text-white text-2xl md:text-3xl lg:text-4xl leading-relaxed text-center whitespace-pre-wrap ${
+                        fullscreenMode === 'arabic' ? 'font-arabic' : ''
+                      }`}
+                    >
+                      {fullscreenMode === 'arabic' ? verse.arabicText : verse.translation}
+                    </p>
+                    {settings.showVerseRef && (
+                      <p className={`text-lg text-center mt-3 font-medium ${
+                        verse.isCurrent ? 'text-emerald-400' : 'text-white/40'
+                      }`}>
+                        {fullscreenMode === 'arabic' 
+                          ? `${verse.surahNameArabic} ${verse.surah}:${verse.ayah}`
+                          : `${verse.surahName} ${verse.surah}:${verse.ayah}`
+                        }
+                      </p>
+                    )}
+                  </div>
+                ))}
+              </div>
+            ) : (
+              // Single verse fullscreen view (detection mode)
+              <>
+                <p 
+                  className={`text-white text-2xl md:text-3xl lg:text-4xl leading-relaxed text-center whitespace-pre-wrap ${
+                    fullscreenMode === 'arabic' ? 'font-arabic' : ''
+                  }`}
+                  dir={fullscreenMode === 'arabic' ? 'rtl' : 'ltr'}
+                >
+                  {fullscreenContent.text}
+                </p>
 
-            {/* Verse reference in Arabic fullscreen */}
-            {fullscreenMode === 'arabic' && quranMatch && settings.showVerseRef && (
-              <p className="text-emerald-400 text-lg text-center mt-4 font-medium">
-                {quranMatch.surahName} {quranMatch.surah}:{quranMatch.ayah}
-              </p>
-            )}
+                {/* Verse reference in Arabic fullscreen */}
+                {fullscreenMode === 'arabic' && quranMatch && settings.showVerseRef && (
+                  <p className="text-emerald-400 text-lg text-center mt-4 font-medium">
+                    {quranMatch.surahName} {quranMatch.surah}:{quranMatch.ayah}
+                  </p>
+                )}
 
-            {/* Edition attribution in English fullscreen */}
-            {fullscreenMode === 'english' && quranMatch && (
-              <p className="text-white/40 text-sm text-center mt-4">
-                {TRANSLATION_EDITIONS.find(e => e.code === quranMatch.edition)?.name || quranMatch.edition}
-              </p>
+                {/* Edition attribution in English fullscreen */}
+                {fullscreenMode === 'english' && quranMatch && (
+                  <p className="text-white/40 text-sm text-center mt-4">
+                    {TRANSLATION_EDITIONS.find(e => e.code === quranMatch.edition)?.name || quranMatch.edition}
+                  </p>
+                )}
+              </>
             )}
           </div>
+          
+          {/* Edition attribution at bottom for following mode */}
+          {isFollowing && fullscreenMode === 'english' && (
+            <div className="p-4 border-t border-white/10 text-center">
+              <p className="text-white/40 text-sm">
+                {TRANSLATION_EDITIONS.find(e => e.code === settings.edition)?.name || settings.edition}
+              </p>
+            </div>
+          )}
         </div>
       )}
 
@@ -594,6 +861,12 @@ export default function AudioStreamer({ endpoint = '/api/stream' }: AudioStreame
                     </AvatarFallback>
                   </Avatar>
                   <CardTitle className="text-base">Arabic</CardTitle>
+                  {/* Following mode indicator */}
+                  {isFollowing && (
+                    <span className="text-xs text-emerald-400 bg-emerald-400/10 px-2 py-0.5 rounded-full">
+                      Following
+                    </span>
+                  )}
                 </div>
                 <button
                   onClick={() => enterFullscreen('arabic')}
@@ -609,14 +882,46 @@ export default function AudioStreamer({ endpoint = '/api/stream' }: AudioStreame
                 ref={arabicScrollRef}
                 className="h-32 md:h-40 lg:h-48 overflow-y-auto scrollbar-thin scrollbar-thumb-muted scrollbar-track-transparent"
               >
-                <p className="text-foreground text-lg md:text-xl leading-relaxed text-center font-arabic whitespace-pre-wrap max-w-full" dir="rtl">
-                  {transcription || 'Waiting for speech...'}
-                </p>
-                {/* Verse reference below text */}
-                {quranMatch && settings.showVerseRef && (
-                  <p className="text-xs text-emerald-400 text-center mt-2 font-medium">
-                    {quranMatch.surahName} {quranMatch.surah}:{quranMatch.ayah}
-                  </p>
+                {/* Multi-verse view in following mode */}
+                {isFollowing && followingState ? (
+                  <div className="space-y-3" dir="rtl">
+                    {followingState.verses.map((verse) => (
+                      <div 
+                        key={`${verse.surah}-${verse.ayah}`}
+                        className={`p-2 rounded-lg transition-all duration-300 ${
+                          verse.isCurrent 
+                            ? 'bg-emerald-500/20 border border-emerald-500/40' 
+                            : verse.isPast 
+                              ? 'opacity-50' 
+                              : 'opacity-80'
+                        }`}
+                      >
+                        <p className="text-foreground text-lg md:text-xl leading-relaxed text-center font-arabic whitespace-pre-wrap">
+                          {verse.arabicText}
+                        </p>
+                        {settings.showVerseRef && (
+                          <p className={`text-xs text-center mt-1 font-medium ${
+                            verse.isCurrent ? 'text-emerald-400' : 'text-muted-foreground'
+                          }`}>
+                            {verse.surah}:{verse.ayah}
+                          </p>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  // Single verse view (detection mode)
+                  <>
+                    <p className="text-foreground text-lg md:text-xl leading-relaxed text-center font-arabic whitespace-pre-wrap max-w-full" dir="rtl">
+                      {transcription || 'Waiting for speech...'}
+                    </p>
+                    {/* Verse reference below text */}
+                    {quranMatch && settings.showVerseRef && (
+                      <p className="text-xs text-emerald-400 text-center mt-2 font-medium">
+                        {quranMatch.surahName} {quranMatch.surah}:{quranMatch.ayah}
+                      </p>
+                    )}
+                  </>
                 )}
               </div>
             </CardContent>
@@ -634,7 +939,7 @@ export default function AudioStreamer({ endpoint = '/api/stream' }: AudioStreame
                   </Avatar>
                   <CardTitle className="text-base">English</CardTitle>
                   {/* Verification indicator with label */}
-                  {settings.mode === 'quran' && translation && (
+                  {settings.mode === 'quran' && (translation || isFollowing) && (
                     <span className="flex items-center gap-1">
                       {isVerified ? (
                         <>
@@ -664,14 +969,44 @@ export default function AudioStreamer({ endpoint = '/api/stream' }: AudioStreame
                 ref={englishScrollRef}
                 className="h-32 md:h-40 lg:h-48 overflow-y-auto scrollbar-thin scrollbar-thumb-muted scrollbar-track-transparent"
               >
-                <p className="text-foreground text-lg md:text-xl leading-relaxed text-center whitespace-pre-wrap max-w-full">
-                  {translation || 'Translation will appear here...'}
-                </p>
+                {/* Multi-verse view in following mode */}
+                {isFollowing && followingState ? (
+                  <div className="space-y-3">
+                    {followingState.verses.map((verse) => (
+                      <div 
+                        key={`${verse.surah}-${verse.ayah}-en`}
+                        className={`p-2 rounded-lg transition-all duration-300 ${
+                          verse.isCurrent 
+                            ? 'bg-emerald-500/20 border border-emerald-500/40' 
+                            : verse.isPast 
+                              ? 'opacity-50' 
+                              : 'opacity-80'
+                        }`}
+                      >
+                        <p className="text-foreground text-lg md:text-xl leading-relaxed text-center whitespace-pre-wrap">
+                          {verse.translation}
+                        </p>
+                        {settings.showVerseRef && (
+                          <p className={`text-xs text-center mt-1 font-medium ${
+                            verse.isCurrent ? 'text-emerald-400' : 'text-muted-foreground'
+                          }`}>
+                            {verse.surah}:{verse.ayah}
+                          </p>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  // Single verse view (detection mode)
+                  <p className="text-foreground text-lg md:text-xl leading-relaxed text-center whitespace-pre-wrap max-w-full">
+                    {translation || 'Translation will appear here...'}
+                  </p>
+                )}
               </div>
               {/* Edition attribution - fixed at bottom outside scroll */}
-              {quranMatch && (
+              {(quranMatch || isFollowing) && (
                 <p className="text-xs text-muted-foreground text-center pt-2 border-t border-border/30 mt-2">
-                  {TRANSLATION_EDITIONS.find(e => e.code === quranMatch.edition)?.name || quranMatch.edition}
+                  {TRANSLATION_EDITIONS.find(e => e.code === settings.edition)?.name || settings.edition}
                 </p>
               )}
             </CardContent>
