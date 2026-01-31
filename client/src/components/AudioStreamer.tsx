@@ -82,6 +82,10 @@ export default function AudioStreamer({ endpoint = '/api/stream' }: AudioStreame
   // Sync Web Speech API transcript for Quran mode
   useEffect(() => {
     if (settings.mode === 'quran' && speechRecognition.transcript) {
+      console.log('[AudioStreamer] Syncing transcript from Web Speech API:', {
+        transcript: speechRecognition.transcript,
+        length: speechRecognition.transcript.length
+      })
       setTranscription(speechRecognition.transcript)
     }
   }, [settings.mode, speechRecognition.transcript])
@@ -98,6 +102,14 @@ export default function AudioStreamer({ endpoint = '/api/stream' }: AudioStreame
   // Phase 2 (Following): Match against expected verses, track progression
   useEffect(() => {
     if (settings.mode !== 'quran' || !transcription || transcription.length < 5) {
+      if (settings.mode === 'quran') {
+        console.log('[AudioStreamer] Verse matching skipped:', {
+          mode: settings.mode,
+          hasTranscription: !!transcription,
+          transcriptionLength: transcription?.length || 0,
+          reason: !transcription ? 'No transcription' : 'Transcription too short (< 5 chars)'
+        })
+      }
       return
     }
 
@@ -108,10 +120,17 @@ export default function AudioStreamer({ endpoint = '/api/stream' }: AudioStreame
 
     // Increment search ID to track this specific search
     const currentSearchId = ++searchIdRef.current
+    console.log('[AudioStreamer] Starting verse search:', {
+      searchId: currentSearchId,
+      transcription: transcription,
+      isFollowing: isFollowing,
+      phase: isFollowing ? 'FOLLOWING' : 'DETECTION'
+    })
 
     searchTimeoutRef.current = setTimeout(async () => {
       // Check if this search is still current before starting
       if (currentSearchId !== searchIdRef.current) {
+        console.log('[AudioStreamer] Search cancelled (stale):', { searchId: currentSearchId, currentId: searchIdRef.current })
         return // A newer search has been initiated
       }
 
@@ -298,11 +317,35 @@ export default function AudioStreamer({ endpoint = '/api/stream' }: AudioStreame
   }, [transcription, translation, fullscreenMode])
 
   useEffect(() => {
-    // Initialize Socket.IO connection
+    // QURAN MODE: Fully client-side, no socket connection needed
+    if (settings.mode === 'quran') {
+      console.log('[AudioStreamer] Quran mode - skipping socket connection (client-side only)')
+      
+      // Disconnect existing socket if switching from Dua to Quran mode
+      if (socketRef.current) {
+        console.log('[AudioStreamer] Disconnecting socket for Quran mode')
+        socketRef.current.disconnect()
+        socketRef.current = null
+      }
+      
+      // Set status to indicate client-side mode (not disconnected/error state)
+      setConnectionStatus('disconnected') // No server needed for Quran mode
+      setError('') // Clear any connection errors
+      return
+    }
+
+    // DUA MODE: Connect to server for Google Speech-to-Text and Translation
     // In production on Railway, client and server are on same domain, so use relative URL
     // In development, connect to localhost:3001
     const socketUrl = import.meta.env.PROD ? '' : (import.meta.env.VITE_API_URL || 'http://localhost:3001')
-    console.log('Attempting to connect to Socket.IO at:', socketUrl || 'same domain (production)')
+    
+    // Debug: Log connection attempt with mode info
+    console.log('[AudioStreamer] Socket.IO connection for Dua mode:', {
+      socketUrl: socketUrl || 'same domain (production)',
+      currentMode: settings.mode,
+      timestamp: new Date().toISOString()
+    })
+    
     const socket = io(socketUrl, {
       transports: ['websocket'],
     })
@@ -310,13 +353,17 @@ export default function AudioStreamer({ endpoint = '/api/stream' }: AudioStreame
 
     // Socket event handlers - defined as named functions for proper cleanup
     const handleConnect = () => {
-      console.log('Connected to Socket.IO server at:', socketUrl)
+      console.log('[AudioStreamer] Socket connected:', {
+        socketId: socket.id,
+        socketUrl: socketUrl || 'same domain',
+        mode: settings.mode
+      })
       setError('')
       setConnectionStatus('connected')
     }
 
     const handleConnectError = (err: Error) => {
-      console.error('Socket.IO connection error:', err.message)
+      console.error('[AudioStreamer] Socket.IO connection error:', err.message)
       setError('Connection failed: ' + err.message)
       setConnectionStatus('disconnected')
     }
@@ -349,7 +396,7 @@ export default function AudioStreamer({ endpoint = '/api/stream' }: AudioStreame
     }
 
     const handleDisconnect = (reason: string) => {
-      console.log('Disconnected from Socket.IO server. Reason:', reason)
+      console.log('[AudioStreamer] Disconnected from Socket.IO server. Reason:', reason)
       setError('Disconnected from server: ' + reason)
       setConnectionStatus('disconnected')
     }
@@ -364,6 +411,7 @@ export default function AudioStreamer({ endpoint = '/api/stream' }: AudioStreame
     socket.on('disconnect', handleDisconnect)
 
     return () => {
+      console.log('[AudioStreamer] Cleaning up socket connection')
       // Remove all event listeners before disconnecting
       socket.off('connect', handleConnect)
       socket.off('connect_error', handleConnectError)
@@ -383,19 +431,23 @@ export default function AudioStreamer({ endpoint = '/api/stream' }: AudioStreame
       socket.disconnect()
       socketRef.current = null
     }
-  }, [endpoint])
+  }, [settings.mode, endpoint])
 
   // Send mode changes to server
   const handleModeChange = useCallback((newMode: 'quran' | 'dua') => {
+    console.log('[AudioStreamer] Mode change:', { from: settings.mode, to: newMode })
     setMode(newMode)
     // Clear current match and following state when switching modes
     setQuranMatch(null)
     setFollowingState(null)
     setIsFollowing(false)
-    if (socketRef.current?.connected) {
+    setTranscription('')
+    setTranslation('')
+    // Only emit to server if connected (Dua mode)
+    if (newMode === 'dua' && socketRef.current?.connected) {
       socketRef.current.emit('setMode', { mode: newMode })
     }
-  }, [setMode])
+  }, [setMode, settings.mode])
 
   // Send settings changes to server when they change
   useEffect(() => {
@@ -405,6 +457,14 @@ export default function AudioStreamer({ endpoint = '/api/stream' }: AudioStreame
   }, [settings])
 
   const startRecording = async () => {
+    console.log('[AudioStreamer] startRecording called:', {
+      mode: settings.mode,
+      connectionStatus: connectionStatus,
+      isRecording: isRecording,
+      socketConnected: socketRef.current?.connected,
+      timestamp: new Date().toISOString()
+    })
+    
     try {
       // Clear previous session data
       setTranscription('')
@@ -419,14 +479,19 @@ export default function AudioStreamer({ endpoint = '/api/stream' }: AudioStreame
       if ('wakeLock' in navigator) {
         try {
           wakeLockRef.current = await navigator.wakeLock.request('screen')
-          console.log('Screen wake lock acquired')
+          console.log('[AudioStreamer] Screen wake lock acquired')
         } catch (wakeLockErr) {
-          console.warn('Wake lock not available:', wakeLockErr)
+          console.warn('[AudioStreamer] Wake lock not available:', wakeLockErr)
         }
       }
 
       // QURAN MODE: Use Web Speech API (fully client-side)
       if (settings.mode === 'quran') {
+        console.log('[AudioStreamer] Starting Quran mode (client-side Web Speech API):', {
+          isSupported: speechRecognition.isSupported,
+          socketConnected: socketRef.current?.connected
+        })
+        
         if (!speechRecognition.isSupported) {
           setError('Speech recognition is not supported in this browser. Please use Chrome or Edge.')
           return
@@ -435,7 +500,7 @@ export default function AudioStreamer({ endpoint = '/api/stream' }: AudioStreame
         speechRecognition.resetTranscript()
         speechRecognition.startListening()
         setIsRecording(true)
-        console.log('Started client-side speech recognition for Quran mode')
+        console.log('[AudioStreamer] Started client-side speech recognition for Quran mode')
         return
       }
 

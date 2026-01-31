@@ -4,7 +4,7 @@
  */
 
 import { loadArabicQuran, loadTranslation, getSurahMeta, getVersesInRange, getSurahAyahCount, type QuranVerse, type SurahMeta } from './quran-data'
-import { normalizeArabic, calculateSimilarity } from './arabic-utils'
+import { normalizeArabic, calculateSimilarity, findBestSegmentMatch } from './arabic-utils'
 
 /**
  * Represents a matched Quran verse with translation.
@@ -110,28 +110,92 @@ async function ensureSurahMetaLoaded(): Promise<SurahMeta[]> {
 }
 
 /**
+ * Minimum query length for partial matching.
+ * Very short queries (< 5 chars) could match many verses randomly.
+ */
+const MIN_PARTIAL_MATCH_LENGTH = 5
+
+/**
+ * Confidence boost for substring matches at the start of a verse.
+ * If the query matches the beginning of a verse, it's more likely correct.
+ */
+const START_SUBSTRING_BOOST = 0.85
+
+/**
+ * Confidence for exact substring matches anywhere in the verse.
+ */
+const SUBSTRING_MATCH_CONFIDENCE = 0.75
+
+/**
  * Searches for a matching verse in a specific surah.
+ * Uses a hybrid approach:
+ * 1. Full similarity (Levenshtein) for longer queries
+ * 2. Substring matching for short queries (prefix matches get boosted)
+ * 3. Segment matching to find best-matching portion of verse
  *
  * @param normalizedQuery - The normalized query text
  * @param surahNumber - The surah number to search in
  * @param confidenceThreshold - Minimum confidence for a match
+ * @param enableLogging - Whether to log match details
  * @returns Best match in the surah or null
  */
 function searchInSurah(
   normalizedQuery: string,
   surahNumber: number,
-  confidenceThreshold: number
+  confidenceThreshold: number,
+  enableLogging: boolean = false
 ): { verse: QuranVerse; confidence: number } | null {
   const surahVerses = normalizedVersesCache.get(surahNumber)
   if (!surahVerses) return null
 
   let bestMatch: { verse: QuranVerse; confidence: number } | null = null
+  const queryLength = normalizedQuery.length
+  const isShortQuery = queryLength < 20 // Short queries need different handling
 
   for (const { verse, normalized } of surahVerses) {
-    const similarity = calculateSimilarity(normalizedQuery, normalized)
+    let confidence = 0
+    let matchMethod = 'similarity'
 
-    if (similarity >= confidenceThreshold && (!bestMatch || similarity > bestMatch.confidence)) {
-      bestMatch = { verse, confidence: similarity }
+    // Method 1: Full similarity (works well for similar-length texts)
+    const similarity = calculateSimilarity(normalizedQuery, normalized)
+    confidence = similarity
+
+    // Method 2: For short queries, check if it's a substring of the verse
+    if (isShortQuery && queryLength >= MIN_PARTIAL_MATCH_LENGTH) {
+      // Check if query matches the START of the verse (highest confidence for partial)
+      if (normalized.startsWith(normalizedQuery)) {
+        confidence = Math.max(confidence, START_SUBSTRING_BOOST)
+        matchMethod = 'start-substring'
+      }
+      // Check if query is contained anywhere in the verse
+      else if (normalized.includes(normalizedQuery)) {
+        confidence = Math.max(confidence, SUBSTRING_MATCH_CONFIDENCE)
+        matchMethod = 'substring'
+      }
+      // Check segment match - find best matching window in the verse
+      else {
+        const segmentMatch = findBestSegmentMatch(normalizedQuery, normalized)
+        if (segmentMatch && segmentMatch.similarity > confidence) {
+          // For segment matches, use the segment similarity but cap it
+          // to indicate it's a partial match
+          confidence = Math.min(segmentMatch.similarity * 0.9, 0.8)
+          matchMethod = 'segment'
+        }
+      }
+    }
+
+    // Debug: Log matches for analysis
+    if (enableLogging && confidence >= 0.3) {
+      console.log(`[QuranMatcher] Surah ${surahNumber}:${verse.ayah}`, {
+        method: matchMethod,
+        confidence: `${(confidence * 100).toFixed(1)}%`,
+        query: normalizedQuery.substring(0, 30),
+        verse: normalized.substring(0, 40)
+      })
+    }
+
+    if (confidence >= confidenceThreshold && (!bestMatch || confidence > bestMatch.confidence)) {
+      bestMatch = { verse, confidence }
     }
   }
 
@@ -153,20 +217,41 @@ export async function searchVerse(
   confidenceThreshold: number = DEFAULT_CONFIDENCE_THRESHOLD
 ): Promise<QuranMatch | null> {
   if (!arabicText || arabicText.trim().length < 3) {
+    console.log('[QuranMatcher] searchVerse: Input too short, skipping', { length: arabicText?.length || 0 })
     return null
   }
+
+  // Adjust threshold for short queries - they need substring matching to work
+  const normalizedInput = normalizeArabic(arabicText)
+  const isShortQuery = normalizedInput.length < 20
+  const effectiveThreshold = isShortQuery 
+    ? Math.min(confidenceThreshold, 0.6) // Lower threshold for short queries
+    : confidenceThreshold
+
+  // Debug: Log search start
+  console.log('[QuranMatcher] searchVerse START:', {
+    input: arabicText,
+    normalizedLength: normalizedInput.length,
+    isShortQuery: isShortQuery,
+    originalThreshold: confidenceThreshold,
+    effectiveThreshold: effectiveThreshold,
+    edition: translationEdition
+  })
 
   // Ensure all data is loaded
   await ensureArabicLoaded()
   const translations = await ensureTranslationLoaded(translationEdition)
   const surahMeta = await ensureSurahMetaLoaded()
 
-  const normalizedQuery = normalizeArabic(arabicText)
+  console.log('[QuranMatcher] Normalized query:', normalizedInput, `(${normalizedInput.length} chars)`)
+  
   let bestMatch: { verse: QuranVerse; confidence: number } | null = null
 
   // First pass: Search common Salah surahs (fast path)
+  // Enable logging for Al-Fatiha (surah 1) to debug "alhamdulillah" matching
   for (const surahNumber of COMMON_SALAH_SURAHS) {
-    const match = searchInSurah(normalizedQuery, surahNumber, confidenceThreshold)
+    const enableLogging = surahNumber === 1 // Log Al-Fatiha matches for debugging
+    const match = searchInSurah(normalizedInput, surahNumber, effectiveThreshold, enableLogging)
 
     if (match && (!bestMatch || match.confidence > bestMatch.confidence)) {
       bestMatch = match
@@ -186,7 +271,7 @@ export async function searchVerse(
       v => v.surah === bestMatch!.verse.surah && v.ayah === bestMatch!.verse.ayah
     )
 
-    return {
+    const result = {
       found: true,
       surah: bestMatch.verse.surah,
       surahName: meta?.name || `Surah ${bestMatch.verse.surah}`,
@@ -197,6 +282,15 @@ export async function searchVerse(
       edition: translationEdition,
       confidence: bestMatch.confidence
     }
+    
+    console.log('[QuranMatcher] searchVerse FOUND (common surahs):', {
+      surah: result.surah,
+      ayah: result.ayah,
+      confidence: `${(result.confidence * 100).toFixed(1)}%`,
+      surahName: result.surahName
+    })
+    
+    return result
   }
 
   // Second pass: Search remaining surahs
@@ -204,7 +298,7 @@ export async function searchVerse(
     .filter(n => !COMMON_SALAH_SURAHS.includes(n))
 
   for (const surahNumber of remainingSurahs) {
-    const match = searchInSurah(normalizedQuery, surahNumber, confidenceThreshold)
+    const match = searchInSurah(normalizedInput, surahNumber, effectiveThreshold)
 
     if (match && (!bestMatch || match.confidence > bestMatch.confidence)) {
       bestMatch = match
@@ -217,6 +311,13 @@ export async function searchVerse(
   }
 
   if (!bestMatch) {
+    console.log('[QuranMatcher] searchVerse NO MATCH:', {
+      query: normalizedInput,
+      queryLength: normalizedInput.length,
+      threshold: effectiveThreshold,
+      isShortQuery: isShortQuery,
+      reason: 'No verse met confidence threshold'
+    })
     return null
   }
 
@@ -226,7 +327,7 @@ export async function searchVerse(
     v => v.surah === bestMatch!.verse.surah && v.ayah === bestMatch!.verse.ayah
   )
 
-  return {
+  const result = {
     found: true,
     surah: bestMatch.verse.surah,
     surahName: meta?.name || `Surah ${bestMatch.verse.surah}`,
@@ -237,6 +338,15 @@ export async function searchVerse(
     edition: translationEdition,
     confidence: bestMatch.confidence
   }
+
+  console.log('[QuranMatcher] searchVerse FOUND (all surahs):', {
+    surah: result.surah,
+    ayah: result.ayah,
+    confidence: `${(result.confidence * 100).toFixed(1)}%`,
+    surahName: result.surahName
+  })
+
+  return result
 }
 
 /**

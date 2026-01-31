@@ -131,6 +131,8 @@ export function useSpeechRecognition(
 
   const recognitionRef = useRef<SpeechRecognitionInstance | null>(null)
   const finalizedTranscriptRef = useRef<string>('')
+  const lastFinalResultRef = useRef<string>('') // Track last final result to prevent duplicates
+  const processedResultIndexRef = useRef<number>(-1) // Track processed result indices
   const SpeechRecognitionClass = getSpeechRecognition()
   const isSupported = SpeechRecognitionClass !== null
 
@@ -190,23 +192,67 @@ export function useSpeechRecognition(
       let finalTranscript = ''
       let interimTranscript = ''
 
+      // Debug: Log raw event details
+      console.log('[SpeechRecognition] onresult event:', {
+        resultIndex: event.resultIndex,
+        resultsLength: event.results.length,
+        processedUpTo: processedResultIndexRef.current,
+        timestamp: new Date().toISOString()
+      })
+
       for (let i = event.resultIndex; i < event.results.length; i++) {
         const result = event.results[i]
         // Check bounds before accessing alternatives
         if (result.length > 0) {
+          const transcriptText = result[0].transcript
+          const confidence = result[0].confidence
+          
+          // Debug: Log each result
+          console.log(`[SpeechRecognition] Result[${i}]:`, {
+            isFinal: result.isFinal,
+            transcript: transcriptText,
+            confidence: confidence?.toFixed(3) || 'N/A',
+            alreadyProcessed: result.isFinal && i <= processedResultIndexRef.current
+          })
+          
           if (result.isFinal) {
-            finalTranscript += result[0].transcript
+            // Skip if we've already processed this result index (prevents duplicates)
+            if (i <= processedResultIndexRef.current) {
+              console.log(`[SpeechRecognition] Skipping already processed result[${i}]`)
+              continue
+            }
+            
+            // Check for duplicate content (same text as last final)
+            const normalizedNew = transcriptText.trim()
+            const normalizedLast = lastFinalResultRef.current.trim()
+            if (normalizedNew === normalizedLast) {
+              console.log('[SpeechRecognition] Skipping duplicate final result:', normalizedNew)
+              processedResultIndexRef.current = i
+              continue
+            }
+            
+            finalTranscript += transcriptText
+            lastFinalResultRef.current = transcriptText
+            processedResultIndexRef.current = i
           } else {
-            interimTranscript += result[0].transcript
+            interimTranscript += transcriptText
           }
         }
       }
 
       // Handle final results - append to finalized transcript
       if (finalTranscript) {
+        const previousFinalized = finalizedTranscriptRef.current
         finalizedTranscriptRef.current = finalizedTranscriptRef.current
           ? `${finalizedTranscriptRef.current} ${finalTranscript}`.trim()
           : finalTranscript
+        
+        // Debug: Log finalization
+        console.log('[SpeechRecognition] Finalized:', {
+          previous: previousFinalized,
+          added: finalTranscript,
+          new: finalizedTranscriptRef.current
+        })
       }
 
       // Update displayed transcript: finalized + current interim (replacing, not appending interim)
@@ -216,7 +262,13 @@ export function useSpeechRecognition(
           : finalizedTranscriptRef.current
         : interimTranscript
 
+      // Debug: Log display update
       if (displayTranscript || finalTranscript) {
+        console.log('[SpeechRecognition] Display update:', {
+          finalizedPart: finalizedTranscriptRef.current,
+          interimPart: interimTranscript,
+          displayTranscript: displayTranscript
+        })
         setTranscript(displayTranscript)
       }
     }
@@ -242,10 +294,12 @@ export function useSpeechRecognition(
       }
     }
 
-    // Clear previous transcript
+    // Clear previous transcript and tracking refs
     setTranscript('')
     setError(null)
     finalizedTranscriptRef.current = ''
+    lastFinalResultRef.current = ''
+    processedResultIndexRef.current = -1
 
     // Create new recognition instance
     const recognition = initRecognition()
@@ -286,6 +340,8 @@ export function useSpeechRecognition(
     setTranscript('')
     setError(null)
     finalizedTranscriptRef.current = ''
+    lastFinalResultRef.current = ''
+    processedResultIndexRef.current = -1
   }, [])
 
   /**
