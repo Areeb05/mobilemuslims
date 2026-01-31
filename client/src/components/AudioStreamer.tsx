@@ -2,7 +2,6 @@ import { useEffect, useState, useRef, useCallback } from 'react'
 import { io, Socket } from 'socket.io-client'
 import { Mic, Square, Volume2, Maximize2, X, CheckCircle, AlertTriangle } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card'
-import { Badge } from './ui/badge'
 import { Alert, AlertDescription } from './ui/alert'
 import { Avatar, AvatarFallback } from './ui/avatar'
 import { Button } from './ui/button'
@@ -161,6 +160,12 @@ export default function AudioStreamer({ endpoint = '/api/stream' }: AudioStreame
 
   const startRecording = async () => {
     try {
+      // Clear previous session data
+      setTranscription('')
+      setTranslation('')
+      setQuranMatch(null)
+      setIsVerified(true)
+
       // Request screen wake lock to keep screen on during prayer
       if ('wakeLock' in navigator) {
         try {
@@ -346,9 +351,27 @@ export default function AudioStreamer({ endpoint = '/api/stream' }: AudioStreame
         <div className="fixed inset-0 z-50 bg-black flex flex-col">
           {/* Fullscreen Header */}
           <div className="flex items-center justify-between p-4 border-b border-white/10">
-            <span className="text-white/60 text-sm">
-              {fullscreenMode === 'arabic' ? 'Arabic Transcription' : 'English Translation'}
-            </span>
+            <div className="flex items-center gap-3">
+              <span className="text-white/60 text-sm">
+                {fullscreenMode === 'arabic' ? 'Arabic Transcription' : 'English Translation'}
+              </span>
+              {/* Verification indicator in English fullscreen */}
+              {fullscreenMode === 'english' && settings.mode === 'quran' && translation && (
+                <span className="flex items-center gap-1">
+                  {isVerified ? (
+                    <>
+                      <CheckCircle className="h-4 w-4 text-emerald-400" />
+                      <span className="text-xs text-emerald-400">Verified</span>
+                    </>
+                  ) : (
+                    <>
+                      <AlertTriangle className="h-4 w-4 text-yellow-400" />
+                      <span className="text-xs text-yellow-400">Unverified</span>
+                    </>
+                  )}
+                </span>
+              )}
+            </div>
             <button
               onClick={exitFullscreen}
               className="p-2 rounded-full hover:bg-white/10 transition-colors"
@@ -371,6 +394,20 @@ export default function AudioStreamer({ endpoint = '/api/stream' }: AudioStreame
             >
               {fullscreenContent.text}
             </p>
+
+            {/* Verse reference in Arabic fullscreen */}
+            {fullscreenMode === 'arabic' && quranMatch && settings.showVerseRef && (
+              <p className="text-emerald-400 text-lg text-center mt-4 font-medium">
+                {quranMatch.surahName} {quranMatch.surah}:{quranMatch.ayah}
+              </p>
+            )}
+
+            {/* Edition attribution in English fullscreen */}
+            {fullscreenMode === 'english' && quranMatch && (
+              <p className="text-white/40 text-sm text-center mt-4">
+                {TRANSLATION_EDITIONS.find(e => e.code === quranMatch.edition)?.name || quranMatch.edition}
+              </p>
+            )}
           </div>
         </div>
       )}
@@ -381,13 +418,17 @@ export default function AudioStreamer({ endpoint = '/api/stream' }: AudioStreame
         <div className="flex items-center justify-center gap-3 flex-wrap">
           <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
             <span>Server:</span>
-            <Badge 
-              variant={connectionStatus === 'connected' ? 'default' : 'secondary'}
-              className="text-xs"
-            >
-              {connectionStatus === 'connected' ? 'Connected' :
-               connectionStatus === 'connecting' ? 'Connecting...' : 'Disconnected'}
-            </Badge>
+            <span 
+              className={`h-2 w-2 rounded-full ${
+                connectionStatus === 'connected' 
+                  ? 'bg-emerald-500' 
+                  : connectionStatus === 'connecting'
+                    ? 'bg-yellow-500 animate-pulse'
+                    : 'bg-red-500'
+              }`}
+              aria-label={connectionStatus === 'connected' ? 'Connected' :
+                          connectionStatus === 'connecting' ? 'Connecting' : 'Disconnected'}
+            />
           </div>
 
           <QuranSettings />
@@ -444,12 +485,6 @@ export default function AudioStreamer({ endpoint = '/api/stream' }: AudioStreame
                     </AvatarFallback>
                   </Avatar>
                   <CardTitle className="text-base">Arabic</CardTitle>
-                  {/* Verse reference badge */}
-                  {quranMatch && settings.showVerseRef && (
-                    <Badge variant="outline" className="text-xs bg-primary/10 border-primary/30">
-                      {quranMatch.surahName} {quranMatch.surah}:{quranMatch.ayah}
-                    </Badge>
-                  )}
                 </div>
                 <button
                   onClick={() => enterFullscreen('arabic')}
@@ -468,6 +503,12 @@ export default function AudioStreamer({ endpoint = '/api/stream' }: AudioStreame
                 <p className="text-foreground text-lg md:text-xl leading-relaxed text-center font-arabic whitespace-pre-wrap max-w-full" dir="rtl">
                   {transcription || 'Waiting for speech...'}
                 </p>
+                {/* Verse reference below text */}
+                {quranMatch && settings.showVerseRef && (
+                  <p className="text-xs text-emerald-400 text-center mt-2 font-medium">
+                    {quranMatch.surahName} {quranMatch.surah}:{quranMatch.ayah}
+                  </p>
+                )}
               </div>
             </CardContent>
           </Card>
@@ -483,13 +524,21 @@ export default function AudioStreamer({ endpoint = '/api/stream' }: AudioStreame
                     </AvatarFallback>
                   </Avatar>
                   <CardTitle className="text-base">English</CardTitle>
-                  {/* Verification indicator */}
+                  {/* Verification indicator with label */}
                   {settings.mode === 'quran' && translation && (
-                    isVerified ? (
-                      <CheckCircle className="h-4 w-4 text-green-500" aria-label="Verified Quran translation" />
-                    ) : (
-                      <AlertTriangle className="h-4 w-4 text-yellow-500" aria-label="Unverified translation" />
-                    )
+                    <span className="flex items-center gap-1">
+                      {isVerified ? (
+                        <>
+                          <CheckCircle className="h-4 w-4 text-emerald-400" />
+                          <span className="hidden sm:inline text-xs text-emerald-400">Verified</span>
+                        </>
+                      ) : (
+                        <>
+                          <AlertTriangle className="h-4 w-4 text-yellow-400" />
+                          <span className="hidden sm:inline text-xs text-yellow-400">Unverified</span>
+                        </>
+                      )}
+                    </span>
                   )}
                 </div>
                 <button
@@ -509,13 +558,13 @@ export default function AudioStreamer({ endpoint = '/api/stream' }: AudioStreame
                 <p className="text-foreground text-lg md:text-xl leading-relaxed text-center whitespace-pre-wrap max-w-full">
                   {translation || 'Translation will appear here...'}
                 </p>
-                {/* Edition attribution for Quran matches */}
-                {quranMatch && (
-                  <p className="text-xs text-muted-foreground text-center mt-2">
-                    [{TRANSLATION_EDITIONS.find(e => e.code === quranMatch.edition)?.name || quranMatch.edition}]
-                  </p>
-                )}
               </div>
+              {/* Edition attribution - fixed at bottom outside scroll */}
+              {quranMatch && (
+                <p className="text-xs text-muted-foreground text-center pt-2 border-t border-border/30 mt-2">
+                  {TRANSLATION_EDITIONS.find(e => e.code === quranMatch.edition)?.name || quranMatch.edition}
+                </p>
+              )}
             </CardContent>
           </Card>
         </div>
