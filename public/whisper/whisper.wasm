@@ -1,0 +1,7 @@
+// Placeholder for Whisper.cpp WebAssembly module
+// This file should be replaced with the actual compiled WASM from whisper.cpp
+//
+// To generate the real file:
+// 1. Clone https://github.com/ggml-org/whisper.cpp
+// 2. Run: emcmake cmake -B build && cmake --build build -j
+// 3. Copy build/bin/whisper.wasm to this location

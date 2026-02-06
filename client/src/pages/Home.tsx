@@ -28,6 +28,12 @@ const links: LinkItem[] = [
     external: false,
   },
   {
+    label: 'Understand Salah (Offline)',
+    href: '/understandsalah/offline',
+    icon: <Mic2 className="h-5 w-5" />,
+    external: false,
+  },
+  {
     label: 'Pain Free Salah',
     href: '/painfreesalah',
     icon: <Sparkles className="h-5 w-5" />,
