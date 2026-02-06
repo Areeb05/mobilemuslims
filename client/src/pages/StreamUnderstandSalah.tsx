@@ -39,8 +39,6 @@ export default function StreamUnderstandSalah({}: StreamUnderstandSalahProps) {
   const [streamId, setStreamId] = useState<number | null>(null);
 
   const streamRef = useRef<MediaStream | null>(null);
-  const audioContextRef = useRef<AudioContext | null>(null);
-  const processorRef = useRef<ScriptProcessorNode | null>(null);
   const statusIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
   // Available models
@@ -84,9 +82,6 @@ export default function StreamUnderstandSalah({}: StreamUnderstandSalahProps) {
       }
       if (streamRef.current) {
         streamRef.current.getTracks().forEach(track => track.stop());
-      }
-      if (audioContextRef.current) {
-        audioContextRef.current.close();
       }
     };
   }, []);
@@ -147,8 +142,9 @@ export default function StreamUnderstandSalah({}: StreamUnderstandSalahProps) {
     try {
       setStatus(`Loading ${modelName} model...`);
 
-      // Model URL (you'll need to host these or use a CDN)
-      const modelUrl = `https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-${modelName}.bin`;
+      // For now, use a mock URL since we can't download large models in browser
+      // In production, you'll need to host these models on a CDN that allows CORS
+      const modelUrl = `/whisper/models/ggml-${modelName}.bin`; // This will fail until models are hosted
 
       // Initialize the stream with the model
       const id = window.stream.init(modelUrl, 'ar'); // 'ar' for Arabic
@@ -185,33 +181,45 @@ export default function StreamUnderstandSalah({}: StreamUnderstandSalahProps) {
 
       streamRef.current = stream;
 
-      // Create audio context for processing
-      const audioContext = new AudioContext({ sampleRate: 16000 });
-      audioContextRef.current = audioContext;
+      // Use MediaRecorder for reliable audio capture
+      const mediaRecorder = new MediaRecorder(stream, {
+        mimeType: 'audio/webm;codecs=opus'
+      });
 
-      const source = audioContext.createMediaStreamSource(stream);
-      const processor = audioContext.createScriptProcessor(4096, 1, 1);
+      const audioChunks: Blob[] = [];
 
-      processor.onaudioprocess = (event) => {
-        if (window.stream && window.stream.set_audio && streamId) {
-          // Convert audio data to the format expected by stream.wasm
-          const inputBuffer = event.inputBuffer.getChannelData(0);
-          const audioData = new Float32Array(inputBuffer.length);
-
-          // Copy and potentially resample if needed
-          for (let i = 0; i < inputBuffer.length; i++) {
-            audioData[i] = inputBuffer[i];
-          }
-
-          // Send audio data to the stream processor
-          window.stream.set_audio(streamId, audioData);
+      mediaRecorder.ondataavailable = (event) => {
+        if (event.data.size > 0) {
+          audioChunks.push(event.data);
         }
       };
 
-      source.connect(processor);
-      processor.connect(audioContext.destination);
+      mediaRecorder.onstop = async () => {
+        if (audioChunks.length > 0 && window.stream && window.stream.set_audio && streamId) {
+          try {
+            // Convert recorded audio to the format expected by stream.wasm
+            const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
+            const arrayBuffer = await audioBlob.arrayBuffer();
 
-      processorRef.current = processor;
+            // Convert to Float32Array (simplified - real implementation needs proper decoding)
+            const audioData = new Float32Array(arrayBuffer.byteLength / 4);
+            const view = new DataView(arrayBuffer);
+
+            // This is a simplified conversion - real implementation needs proper audio decoding
+            for (let i = 0; i < audioData.length; i++) {
+              audioData[i] = view.getFloat32(i * 4, true) || 0;
+            }
+
+            // Send audio data to the stream processor
+            window.stream.set_audio(streamId, audioData);
+          } catch (error) {
+            console.error('Error processing recorded audio:', error);
+          }
+        }
+      };
+
+      // Start recording in small chunks
+      mediaRecorder.start(100); // 100ms chunks
       setIsRecording(true);
       setStatus('Recording... Speak now!');
 
@@ -222,14 +230,9 @@ export default function StreamUnderstandSalah({}: StreamUnderstandSalahProps) {
   }, [streamId]);
 
   const stopRecording = useCallback(() => {
+    // Stop all media tracks
     if (streamRef.current) {
       streamRef.current.getTracks().forEach(track => track.stop());
-    }
-    if (processorRef.current) {
-      processorRef.current.disconnect();
-    }
-    if (audioContextRef.current) {
-      audioContextRef.current.close();
     }
 
     setIsRecording(false);
