@@ -2,6 +2,24 @@
 
 This directory contains the WebAssembly build of Whisper.cpp for offline Arabic speech recognition.
 
+## 🚀 Railway Deployment Setup
+
+**All files in this directory are automatically included in the Railway deployment:**
+
+1. **Vite Build Process**: Files in `client/public/whisper/` → copied to `client/dist/whisper/`
+2. **Express Static Serving**: Railway serves `client/dist/` as static files
+3. **Client-Side Access**: React components access files via `/whisper/...` URLs
+4. **No Additional Configuration Needed**: Everything works out-of-the-box on Railway
+
+### File Structure After Build:
+```
+Railway Server (Express)
+├── /whisper/stream/libstream.js     # WASM JavaScript bindings
+├── /whisper/stream/libstream.wasm   # Compiled WebAssembly
+├── /whisper/models/                 # Whisper model files
+└── /whisper/whisper.wasm           # Legacy WASM file
+```
+
 ## Current Status: Stream.wasm Integration (BEST APPROACH)
 
 **🎯 PERFECT!** We've discovered the **stream.wasm** example from whisper.cpp - this is exactly what we need!
@@ -25,9 +43,9 @@ cp whisper-cpp-source/examples/stream.wasm/* public/whisper/stream/
 ```
 
 #### **Step 2: ✅ COMPLETED - StreamUnderstandSalah Component**
-- ✅ Integrated stream.wasm API into React
-- ✅ Added real-time audio streaming
-- ✅ Implemented Arabic transcription display
+- ✅ Integrated stream.wasm API into React at `/understandsalahoffline`
+- ✅ Added real-time audio streaming for Arabic speech
+- ✅ Implemented live transcription display
 - ✅ Added English translation with Islamic phrase dictionary
 
 #### **Step 3: ✅ COMPLETED - Translation Layer**
@@ -633,7 +651,7 @@ whisper/
 ## Testing the Current Implementation
 
 1. Start the development server: `npm run dev`
-2. Navigate to `/understandsalah/offline`
+2. Navigate to `/understandsalahoffline`
 3. Click "Models" to see the settings dialog
 4. Try recording - you'll see mock Arabic transcription
 5. The UI works end-to-end for testing

@@ -162,18 +162,36 @@ export default function UnderstandSalahOffline({}: UnderstandSalahOfflineProps) 
       const isMockWasm = !(wasmData.instance.exports as any).whisper_init_from_buffer;
 
       if (isMockWasm) {
-        // Mock processing - simulate transcription
+        // Mock processing - simulate transcription + translation
         console.log('Mock processing audio blob:', audioBlob.size, 'bytes');
 
-        // Simulate processing delay
-        await new Promise(resolve => setTimeout(resolve, 2000));
+        // Simulate realistic processing delay (2-4 seconds)
+        const processingTime = 2000 + Math.random() * 2000;
+        await new Promise(resolve => setTimeout(resolve, processingTime));
 
-        // Mock Arabic transcription
-        const mockArabic = 'السلام عليكم ورحمة الله وبركاته';
+        // Mock Arabic transcriptions (real Islamic phrases)
+        const arabicPhrases = [
+          'السلام عليكم ورحمة الله وبركاته',
+          'الحمد لله رب العالمين',
+          'الله أكبر',
+          'سبحان الله والحمد لله ولا إله إلا الله والله أكبر',
+          'لا إله إلا أنت سبحانك إني كنت من الظالمين'
+        ];
+
+        // Mock English translations
+        const englishTranslations = [
+          'Peace be upon you and the mercy of Allah and His blessings',
+          'All praise is due to Allah, Lord of the worlds',
+          'Allah is the Greatest',
+          'Glory be to Allah and praise be to Allah and there is no god but Allah and Allah is the Greatest',
+          'There is no god but You, glory be to You, indeed I have been among the wrongdoers'
+        ];
+
+        const randomIndex = Math.floor(Math.random() * arabicPhrases.length);
+        const mockArabic = arabicPhrases[randomIndex];
+        const mockEnglish = englishTranslations[randomIndex];
+
         setTranscription(prev => prev + ' ' + mockArabic);
-
-        // Mock English translation
-        const mockEnglish = 'Peace be upon you and the mercy of Allah and His blessings';
         setTranslation(prev => prev + ' ' + mockEnglish);
 
         return;
