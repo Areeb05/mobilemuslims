@@ -37,3 +37,7 @@ Thumbs.db
 # Logs
 logs
 *.log
+
+# Build directories
+emsdk/
+whisper-cpp-build/
