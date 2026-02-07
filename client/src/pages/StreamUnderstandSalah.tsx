@@ -4,6 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card'
 import { Badge } from '../components/ui/badge';
 import { Button } from '../components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '../components/ui/dialog';
+import { useWhisperModel } from '../hooks/useWhisperModel';
 
 // Translation dictionary for common Islamic phrases
 const ISLAMIC_TRANSLATIONS: Record<string, string> = {
@@ -33,7 +34,7 @@ export default function StreamUnderstandSalah({}: StreamUnderstandSalahProps) {
   const [transcription, setTranscription] = useState('');
   const [translation, setTranslation] = useState('');
   const [status, setStatus] = useState('Loading...');
-  const [selectedModel, setSelectedModel] = useState('tiny.en');
+  const [selectedModel, setSelectedModel] = useState('tiny');
   const [showSettings, setShowSettings] = useState(false);
   const [fullscreenMode, setFullscreenMode] = useState<'arabic' | 'english' | null>(null);
   const [streamId, setStreamId] = useState<number | null>(null);
@@ -41,8 +42,11 @@ export default function StreamUnderstandSalah({}: StreamUnderstandSalahProps) {
   const streamRef = useRef<MediaStream | null>(null);
   const statusIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
-  // Available models
-  const models = [
+  // Model management
+  const { models: downloadedModels, downloadModel } = useWhisperModel();
+
+  // Available models for UI display
+  const availableModels = [
     { id: 'tiny.en', name: 'Tiny English', size: '75 MB' },
     { id: 'base.en', name: 'Base English', size: '142 MB' },
     { id: 'small.en', name: 'Small English', size: '466 MB' },
@@ -58,9 +62,12 @@ export default function StreamUnderstandSalah({}: StreamUnderstandSalahProps) {
         // Load the stream.wasm JavaScript module
         const script = document.createElement('script');
         script.src = '/whisper/stream/libstream.js';
-        script.onload = () => {
+        script.onload = async () => {
           console.log('Stream.wasm loaded successfully');
-          setStatus('Ready to load model');
+          setStatus('Loading model...');
+
+          // Automatically load the best available model
+          await autoLoadBestModel();
         };
         script.onerror = (error) => {
           console.error('Failed to load stream.wasm:', error);
@@ -161,6 +168,32 @@ export default function StreamUnderstandSalah({}: StreamUnderstandSalahProps) {
       setStatus('Error loading model');
     }
   }, []);
+
+  // Auto-load the best available model
+  const autoLoadBestModel = useCallback(async () => {
+    try {
+      // Check for already downloaded models
+      const alreadyDownloadedModels = downloadedModels.filter(model => model.downloaded);
+
+      if (alreadyDownloadedModels.length > 0) {
+        // Load the first available downloaded model
+        const bestModel = alreadyDownloadedModels[0];
+        console.log('Found downloaded model:', bestModel.name);
+        setSelectedModel(bestModel.name);
+        await loadModel(bestModel.name);
+      } else {
+        // No downloaded models, auto-download and load 'tiny' model
+        console.log('No downloaded models found, auto-loading tiny model');
+        setSelectedModel('tiny');
+        await downloadModel('tiny');
+        // After download completes, load the model
+        await loadModel('tiny');
+      }
+    } catch (error) {
+      console.error('Error in auto-loading model:', error);
+      setStatus('Error loading model');
+    }
+  }, [downloadedModels, downloadModel, loadModel]);
 
   const startRecording = useCallback(async () => {
     if (!streamId) {
@@ -327,7 +360,7 @@ export default function StreamUnderstandSalah({}: StreamUnderstandSalahProps) {
                     </p>
 
                     <div className="space-y-3">
-                      {models.map((model) => (
+                      {availableModels.map((model) => (
                         <div key={model.id} className="flex items-center justify-between p-3 bg-gray-800 rounded-lg">
                           <div className="flex items-center gap-3">
                             <div>
