@@ -149,9 +149,9 @@ export default function StreamUnderstandSalah({}: StreamUnderstandSalahProps) {
     try {
       setStatus(`Loading ${modelName} model...`);
 
-      // For now, use a mock URL since we can't download large models in browser
-      // In production, you'll need to host these models on a CDN that allows CORS
-      const modelUrl = `/whisper/models/ggml-${modelName}.bin`; // This will fail until models are hosted
+      // TEMPORARY: Using direct HuggingFace URLs for testing
+      // TODO: Replace with CDN URLs to avoid CORS issues with large files
+      const modelUrl = `https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-${modelName}.bin`;
 
       // Initialize the stream with the model
       const id = window.stream.init(modelUrl, 'ar'); // 'ar' for Arabic

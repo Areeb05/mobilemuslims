@@ -19,41 +19,43 @@ export interface UseWhisperModelReturn {
 }
 
 // Available Whisper models for Arabic transcription
+// TEMPORARY: Using direct HuggingFace for testing (may have CORS issues with large files)
+// TODO: Replace with your CDN URLs after uploading models to avoid CORS issues
 const AVAILABLE_MODELS: Omit<WhisperModel, 'downloaded' | 'downloading' | 'progress'>[] = [
   {
     name: 'tiny',
     size: '39 MB',
-    url: 'https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-tiny.bin',
+    url: 'https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-tiny.bin', // TEMP: Direct download for testing
     localPath: '/whisper/models/ggml-tiny.bin'
   },
   {
     name: 'tiny.en',
     size: '39 MB',
-    url: 'https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-tiny.en.bin',
+    url: 'https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-tiny.en.bin', // TEMP: Direct download for testing
     localPath: '/whisper/models/ggml-tiny.en.bin'
   },
   {
     name: 'base',
     size: '74 MB',
-    url: 'https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-base.bin',
+    url: 'https://your-cdn.com/whisper-models/ggml-base.bin', // Replace with actual CDN URL
     localPath: '/whisper/models/ggml-base.bin'
   },
   {
     name: 'base.en',
     size: '74 MB',
-    url: 'https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-base.en.bin',
+    url: 'https://your-cdn.com/whisper-models/ggml-base.en.bin', // Replace with actual CDN URL
     localPath: '/whisper/models/ggml-base.en.bin'
   },
   {
     name: 'small',
     size: '244 MB',
-    url: 'https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-small.bin',
+    url: 'https://your-cdn.com/whisper-models/ggml-small.bin', // Replace with actual CDN URL
     localPath: '/whisper/models/ggml-small.bin'
   },
   {
     name: 'small.en',
     size: '244 MB',
-    url: 'https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-small.en.bin',
+    url: 'https://your-cdn.com/whisper-models/ggml-small.en.bin', // Replace with actual CDN URL
     localPath: '/whisper/models/ggml-small.en.bin'
   }
 ];

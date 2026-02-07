@@ -2,6 +2,41 @@
 
 This directory contains the WebAssembly build of Whisper.cpp for offline Arabic speech recognition.
 
+## 🚨 CURRENT ISSUE: Models Need CDN Hosting
+
+**The automatic model loading is failing because Whisper models need to be hosted on a CDN with CORS enabled.**
+
+### **Why Models Aren't Loading:**
+1. **Hugging Face URLs** return 302 redirects (browsers don't handle large file redirects well)
+2. **CORS restrictions** prevent direct downloads from external domains
+3. **Local paths** (`/whisper/models/...`) don't exist on the server
+
+### **Immediate Solutions:**
+
+#### **Option 1: Quick Test (Use Direct HuggingFace - May Work):**
+```typescript
+// In client/src/hooks/useWhisperModel.ts, temporarily use:
+url: 'https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-tiny.bin'
+```
+
+#### **Option 2: Host on CDN (Recommended for Production):**
+```bash
+# 1. Download models locally
+mkdir models && cd models
+curl -L -o ggml-tiny.bin "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-tiny.bin"
+curl -L -o ggml-base.bin "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-base.bin"
+
+# 2. Upload to CDN (Cloudflare R2, AWS S3, etc.)
+# 3. Update URLs in client/src/hooks/useWhisperModel.ts
+# 4. Ensure CORS headers: Access-Control-Allow-Origin: *
+```
+
+### **Expected CDN URLs:**
+```
+https://your-cdn.com/whisper-models/ggml-tiny.bin
+https://your-cdn.com/whisper-models/ggml-base.bin
+```
+
 ## 🚀 Railway Deployment Setup
 
 **All files in this directory are automatically included in the Railway deployment:**
