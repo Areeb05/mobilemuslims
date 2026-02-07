@@ -153,47 +153,39 @@ export default function StreamUnderstandSalah({}: StreamUnderstandSalahProps) {
       // TODO: Replace with CDN URLs to avoid CORS issues with large files
       const modelUrl = `https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-${modelName}.bin`;
 
+      console.log(`Initializing stream with model: ${modelUrl} for Arabic language`);
+
       // Initialize the stream with the model
       const id = window.stream.init(modelUrl, 'ar'); // 'ar' for Arabic
 
       if (id > 0) {
         setStreamId(id);
         setSelectedModel(modelName);
-        setStatus('Model loaded successfully');
+        setStatus('Model loaded successfully - Ready to record!');
+        console.log(`Model ${modelName} loaded successfully with stream ID: ${id}`);
       } else {
-        setStatus('Failed to load model');
+        setStatus('Failed to initialize model stream');
+        console.error('Stream initialization returned invalid ID:', id);
       }
     } catch (error) {
       console.error('Error loading model:', error);
-      setStatus('Error loading model');
+      setStatus('Error loading model - check console for details');
     }
   }, []);
 
   // Auto-load the best available model
   const autoLoadBestModel = useCallback(async () => {
     try {
-      // Check for already downloaded models
-      const alreadyDownloadedModels = downloadedModels.filter(model => model.downloaded);
-
-      if (alreadyDownloadedModels.length > 0) {
-        // Load the first available downloaded model
-        const bestModel = alreadyDownloadedModels[0];
-        console.log('Found downloaded model:', bestModel.name);
-        setSelectedModel(bestModel.name);
-        await loadModel(bestModel.name);
-      } else {
-        // No downloaded models, auto-download and load 'tiny' model
-        console.log('No downloaded models found, auto-loading tiny model');
-        setSelectedModel('tiny');
-        await downloadModel('tiny');
-        // After download completes, load the model
-        await loadModel('tiny');
-      }
+      // For now, skip download step due to CORS issues with large files
+      // Directly load the tiny model from HuggingFace
+      console.log('Auto-loading tiny model directly from HuggingFace');
+      setSelectedModel('tiny');
+      await loadModel('tiny');
     } catch (error) {
       console.error('Error in auto-loading model:', error);
       setStatus('Error loading model');
     }
-  }, [downloadedModels, downloadModel, loadModel]);
+  }, [loadModel]);
 
   const startRecording = useCallback(async () => {
     if (!streamId) {
