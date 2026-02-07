@@ -488,7 +488,7 @@ npm run dev
 ```
 
 #### **Test Steps:**
-1. Navigate to `/understandsalah/offline`
+1. Navigate to `/understandsalahoffline`
 2. Open browser DevTools Console
 3. Click "Models" → Download a model (tiny recommended for testing)
 4. Wait for download to complete

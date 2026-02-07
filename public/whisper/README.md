@@ -470,7 +470,7 @@ npm run dev
 ```
 
 #### **Test Steps:**
-1. Navigate to `/understandsalah/offline`
+1. Navigate to `/understandsalahoffline`
 2. Open browser DevTools Console
 3. Click "Models" → Download a model (tiny recommended for testing)
 4. Wait for download to complete
@@ -633,7 +633,7 @@ whisper/
 ## Testing the Current Implementation
 
 1. Start the development server: `npm run dev`
-2. Navigate to `/understandsalah/offline`
+2. Navigate to `/understandsalahoffline`
 3. Click "Models" to see the settings dialog
 4. Try recording - you'll see mock Arabic transcription
 5. The UI works end-to-end for testing
