@@ -8,6 +8,7 @@ export interface WhisperModel {
   downloaded: boolean;
   downloading: boolean;
   progress: number;
+  backend?: 'webgpu' | 'wasm';
 }
 
 export interface UseWhisperModelReturn {
@@ -19,46 +20,57 @@ export interface UseWhisperModelReturn {
 }
 
 // Available Whisper models for Arabic transcription
-// TEMPORARY: Using direct HuggingFace for testing (may have CORS issues with large files)
-// TODO: Replace with your CDN URLs after uploading models to avoid CORS issues
-const AVAILABLE_MODELS: Omit<WhisperModel, 'downloaded' | 'downloading' | 'progress'>[] = [
+// Support both WebGPU (ONNX) and WASM (ggml) backends
+const WEBGPU_MODELS: Omit<WhisperModel, 'downloaded' | 'downloading' | 'progress'>[] = [
   {
     name: 'tiny',
     size: '39 MB',
-    url: 'https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-tiny.bin', // TEMP: Direct download for testing
-    localPath: '/whisper/models/ggml-tiny.bin'
-  },
-  {
-    name: 'tiny.en',
-    size: '39 MB',
-    url: 'https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-tiny.en.bin', // TEMP: Direct download for testing
-    localPath: '/whisper/models/ggml-tiny.en.bin'
+    url: 'https://huggingface.co/onnx-community/whisper-tiny/resolve/main', // Direct ONNX model URL
+    localPath: '/whisper/models/whisper-tiny.onnx',
+    backend: 'webgpu'
   },
   {
     name: 'base',
     size: '74 MB',
-    url: 'https://your-cdn.com/whisper-models/ggml-base.bin', // Replace with actual CDN URL
-    localPath: '/whisper/models/ggml-base.bin'
-  },
-  {
-    name: 'base.en',
-    size: '74 MB',
-    url: 'https://your-cdn.com/whisper-models/ggml-base.en.bin', // Replace with actual CDN URL
-    localPath: '/whisper/models/ggml-base.en.bin'
+    url: 'https://huggingface.co/onnx-community/whisper-base/resolve/main', // Direct ONNX model URL
+    localPath: '/whisper/models/whisper-base.onnx',
+    backend: 'webgpu'
   },
   {
     name: 'small',
     size: '244 MB',
-    url: 'https://your-cdn.com/whisper-models/ggml-small.bin', // Replace with actual CDN URL
-    localPath: '/whisper/models/ggml-small.bin'
-  },
-  {
-    name: 'small.en',
-    size: '244 MB',
-    url: 'https://your-cdn.com/whisper-models/ggml-small.en.bin', // Replace with actual CDN URL
-    localPath: '/whisper/models/ggml-small.en.bin'
+    url: 'https://huggingface.co/onnx-community/whisper-small/resolve/main', // Direct ONNX model URL
+    localPath: '/whisper/models/whisper-small.onnx',
+    backend: 'webgpu'
   }
 ];
+
+const WASM_MODELS: Omit<WhisperModel, 'downloaded' | 'downloading' | 'progress'>[] = [
+  {
+    name: 'tiny-wasm',
+    size: '39 MB',
+    url: '/api/models/tiny', // Server relay endpoint
+    localPath: '/whisper/models/ggml-tiny.bin',
+    backend: 'wasm'
+  },
+  {
+    name: 'base-wasm',
+    size: '74 MB',
+    url: '/api/models/base', // Server relay endpoint
+    localPath: '/whisper/models/ggml-base.bin',
+    backend: 'wasm'
+  },
+  {
+    name: 'small-wasm',
+    size: '244 MB',
+    url: '/api/models/small', // Server relay endpoint
+    localPath: '/whisper/models/ggml-small.bin',
+    backend: 'wasm'
+  }
+];
+
+// Combine models with priority for WebGPU when available
+const AVAILABLE_MODELS = [...WEBGPU_MODELS, ...WASM_MODELS];
 
 export function useWhisperModel(): UseWhisperModelReturn {
   const [models, setModels] = useState<WhisperModel[]>([]);

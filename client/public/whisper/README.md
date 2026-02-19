@@ -18,24 +18,25 @@ This directory contains the WebAssembly build of Whisper.cpp for offline Arabic 
 2. **CORS restrictions** prevent direct downloads from external domains
 3. **Local paths** (`/whisper/models/...`) don't exist on the server
 
-### **Immediate Solutions:**
+### **Path Forward: From Mock to Real AI**
 
-#### **Option 1: Quick Test (Use Direct HuggingFace - May Work):**
-```typescript
-// In client/src/hooks/useWhisperModel.ts, temporarily use:
-url: 'https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-tiny.bin'
+#### **Phase 1: CDN Setup (30 minutes - HIGHLY RECOMMENDED)**
+```bash
+# 1. Download models
+./scripts/setup-cdn-models.sh
+
+# 2. Upload to Cloudflare R2 (free tier)
+# 3. Update URLs in useWhisperModel.ts
+# 4. Replace mock libstream.js with real WASM
+
+# Result: Real Whisper AI working in browser!
 ```
 
-#### **Option 2: Host on CDN (Recommended for Production):**
+#### **Phase 2: Full WASM Compilation (60 minutes - OPTIONAL)**
 ```bash
-# 1. Download models locally
-mkdir models && cd models
-curl -L -o ggml-tiny.bin "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-tiny.bin"
-curl -L -o ggml-base.bin "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-base.bin"
-
-# 2. Upload to CDN (Cloudflare R2, AWS S3, etc.)
-# 3. Update URLs in client/src/hooks/useWhisperModel.ts
-# 4. Ensure CORS headers: Access-Control-Allow-Origin: *
+# Compile whisper.cpp to WebAssembly
+# Replace all mock implementations
+# Result: Ultimate performance and offline capability
 ```
 
 ### **Expected CDN URLs:**

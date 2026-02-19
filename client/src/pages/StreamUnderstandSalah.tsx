@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card'
 import { Badge } from '../components/ui/badge';
 import { Button } from '../components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '../components/ui/dialog';
-import { useWhisperModel } from '../hooks/useWhisperModel';
+import { useUnifiedTranscriber } from '../hooks/useUnifiedTranscriber';
 
 // Translation dictionary for common Islamic phrases
 const ISLAMIC_TRANSLATIONS: Record<string, string> = {
@@ -22,7 +22,14 @@ const ISLAMIC_TRANSLATIONS: Record<string, string> = {
 
 declare global {
   interface Window {
-    stream: any;
+    stream?: {
+      init: (modelUrl: string, language: string) => number;
+      set_audio: (streamId: number, audioData: Float32Array) => void;
+      get_transcribed: () => string;
+      get_status: () => string;
+      set_status: (status: string) => void;
+      free: (streamId: number) => void;
+    };
     whisper: any;
   }
 }
@@ -33,54 +40,88 @@ export default function StreamUnderstandSalah({}: StreamUnderstandSalahProps) {
   const [isRecording, setIsRecording] = useState(false);
   const [transcription, setTranscription] = useState('');
   const [translation, setTranslation] = useState('');
-  const [status, setStatus] = useState('Loading...');
+  const [status, setStatus] = useState('Detecting best backend...');
   const [selectedModel, setSelectedModel] = useState('tiny');
   const [showSettings, setShowSettings] = useState(false);
   const [fullscreenMode, setFullscreenMode] = useState<'arabic' | 'english' | null>(null);
-  const [streamId, setStreamId] = useState<number | null>(null);
 
   const streamRef = useRef<MediaStream | null>(null);
   const statusIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
-  // Model management
-  const { models: downloadedModels, downloadModel } = useWhisperModel();
+  // Unified transcriber with automatic backend selection
+  const unifiedTranscriber = useUnifiedTranscriber();
 
-  // Available models for UI display
-  const availableModels = [
-    { id: 'tiny.en', name: 'Tiny English', size: '75 MB' },
-    { id: 'base.en', name: 'Base English', size: '142 MB' },
-    { id: 'small.en', name: 'Small English', size: '466 MB' },
-    { id: 'tiny', name: 'Tiny Multilingual', size: '75 MB' },
-    { id: 'base', name: 'Base Multilingual', size: '142 MB' },
-    { id: 'small', name: 'Small Multilingual', size: '466 MB' }
+  // Available models for UI display (based on detected backend)
+  const availableModels = unifiedTranscriber.backend === 'webgpu' ? [
+    { id: 'tiny', name: 'Tiny ONNX (WebGPU)', size: '39 MB' },
+    { id: 'base', name: 'Base ONNX (WebGPU)', size: '74 MB' },
+    { id: 'small', name: 'Small ONNX (WebGPU)', size: '244 MB' }
+  ] : unifiedTranscriber.backend === 'wasm' ? [
+    { id: 'tiny-wasm', name: 'Tiny WASM', size: '39 MB' },
+    { id: 'base-wasm', name: 'Base WASM', size: '74 MB' },
+    { id: 'small-wasm', name: 'Small WASM', size: '244 MB' }
+  ] : [
+    { id: 'cloud', name: 'Cloud Fallback', size: 'N/A' }
   ];
 
-  // Load stream.wasm script
+  const loadModel = useCallback(async (modelName: string) => {
+    try {
+      setStatus(`Loading ${modelName} model (${unifiedTranscriber.backend} backend)...`);
+      await unifiedTranscriber.loadModel(modelName);
+      setSelectedModel(modelName);
+      setStatus(`Model loaded successfully - Ready to record! (${unifiedTranscriber.backend})`);
+      console.log(`Model ${modelName} loaded successfully with ${unifiedTranscriber.backend} backend`);
+    } catch (error) {
+      console.error('Error loading model:', error);
+      setStatus('Error loading model - check console for details');
+    }
+  }, [unifiedTranscriber]);
+
+  // Auto-load the best available model
+  const autoLoadBestModel = useCallback(async () => {
+    try {
+      // Choose the best model based on backend and device capabilities
+      const bestModel = unifiedTranscriber.backend === 'webgpu' ? 'tiny' :
+                       unifiedTranscriber.backend === 'wasm' ? 'tiny-wasm' : 'cloud';
+
+      console.log(`Auto-loading ${bestModel} model with ${unifiedTranscriber.backend} backend`);
+      setSelectedModel(bestModel);
+      await loadModel(bestModel);
+    } catch (error) {
+      console.error('Error in auto-loading model:', error);
+      setStatus('Error loading model');
+    }
+  }, [unifiedTranscriber.backend, loadModel]);
+
+  // Auto-load best model when backend is ready
   useEffect(() => {
-    const loadScript = async () => {
-      try {
-        // Load the stream.wasm JavaScript module
-        const script = document.createElement('script');
-        script.src = '/whisper/stream/libstream.js';
-        script.onload = async () => {
-          console.log('Stream.wasm loaded successfully');
-          setStatus('Loading model...');
+    if (unifiedTranscriber.backend !== 'cloud') {
+      console.log(`Backend detected: ${unifiedTranscriber.backend}`);
+      setStatus(`Initializing ${unifiedTranscriber.backend} backend...`);
+      autoLoadBestModel();
+    }
+  }, [unifiedTranscriber.backend, autoLoadBestModel]);
 
-          // Automatically load the best available model
-          await autoLoadBestModel();
-        };
-        script.onerror = (error) => {
-          console.error('Failed to load stream.wasm:', error);
-          setStatus('Failed to load WASM module');
-        };
-        document.head.appendChild(script);
-      } catch (error) {
-        console.error('Error loading stream.wasm:', error);
-        setStatus('Error loading stream module');
-      }
-    };
-
-    loadScript();
+  // Legacy WASM loading (for fallback)
+  useEffect(() => {
+    if (unifiedTranscriber.backend === 'wasm') {
+      const loadWasmScript = async () => {
+        try {
+          const script = document.createElement('script');
+          script.src = '/whisper/stream/libstream.js';
+          script.onload = () => {
+            console.log('Stream.wasm loaded as fallback');
+          };
+          script.onerror = (error) => {
+            console.error('Failed to load stream.wasm fallback:', error);
+          };
+          document.head.appendChild(script);
+        } catch (error) {
+          console.error('Error loading WASM fallback:', error);
+        }
+      };
+      loadWasmScript();
+    }
 
     return () => {
       // Cleanup
@@ -91,18 +132,18 @@ export default function StreamUnderstandSalah({}: StreamUnderstandSalahProps) {
         streamRef.current.getTracks().forEach(track => track.stop());
       }
     };
-  }, []);
+  }, [unifiedTranscriber.backend]);
 
   // Status polling
   useEffect(() => {
-    if (window.stream && window.stream.get_status) {
+    if (window.stream?.get_status && window.stream?.get_transcribed) {
       statusIntervalRef.current = setInterval(() => {
         try {
-          const currentStatus = window.stream.get_status();
+          const currentStatus = window.stream?.get_status?.();
           setStatus(currentStatus || 'Ready');
 
           // Get transcription updates
-          const transcribed = window.stream.get_transcribed();
+          const transcribed = window.stream?.get_transcribed?.();
           if (transcribed && transcribed !== transcription) {
             setTranscription(transcribed);
             // Translate the new transcription
@@ -140,55 +181,8 @@ export default function StreamUnderstandSalah({}: StreamUnderstandSalahProps) {
     setTranslation('[Translation not available in dictionary]');
   }, []);
 
-  const loadModel = useCallback(async (modelName: string) => {
-    if (!window.stream || !window.stream.init) {
-      setStatus('Stream module not loaded');
-      return;
-    }
-
-    try {
-      setStatus(`Loading ${modelName} model...`);
-
-      // TEMPORARY: Using direct HuggingFace URLs for testing
-      // TODO: Replace with CDN URLs to avoid CORS issues with large files
-      const modelUrl = `https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-${modelName}.bin`;
-
-      console.log(`Initializing stream with model: ${modelUrl} for Arabic language`);
-
-      // Initialize the stream with the model
-      const id = window.stream.init(modelUrl, 'ar'); // 'ar' for Arabic
-
-      if (id > 0) {
-        setStreamId(id);
-        setSelectedModel(modelName);
-        setStatus('Model loaded successfully - Ready to record!');
-        console.log(`Model ${modelName} loaded successfully with stream ID: ${id}`);
-      } else {
-        setStatus('Failed to initialize model stream');
-        console.error('Stream initialization returned invalid ID:', id);
-      }
-    } catch (error) {
-      console.error('Error loading model:', error);
-      setStatus('Error loading model - check console for details');
-    }
-  }, []);
-
-  // Auto-load the best available model
-  const autoLoadBestModel = useCallback(async () => {
-    try {
-      // For now, skip download step due to CORS issues with large files
-      // Directly load the tiny model from HuggingFace
-      console.log('Auto-loading tiny model directly from HuggingFace');
-      setSelectedModel('tiny');
-      await loadModel('tiny');
-    } catch (error) {
-      console.error('Error in auto-loading model:', error);
-      setStatus('Error loading model');
-    }
-  }, [loadModel]);
-
   const startRecording = useCallback(async () => {
-    if (!streamId) {
+    if (!unifiedTranscriber.isReady) {
       setStatus('Please load a model first');
       return;
     }
@@ -220,39 +214,37 @@ export default function StreamUnderstandSalah({}: StreamUnderstandSalahProps) {
       };
 
       mediaRecorder.onstop = async () => {
-        if (audioChunks.length > 0 && window.stream && window.stream.set_audio && streamId) {
-          try {
-            // Convert recorded audio to the format expected by stream.wasm
-            const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
-            const arrayBuffer = await audioBlob.arrayBuffer();
+        try {
+          setStatus('Processing audio...');
 
-            // Convert to Float32Array (simplified - real implementation needs proper decoding)
-            const audioData = new Float32Array(arrayBuffer.byteLength / 4);
-            const view = new DataView(arrayBuffer);
+          // Convert recorded chunks to a single blob
+          const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
 
-            // This is a simplified conversion - real implementation needs proper audio decoding
-            for (let i = 0; i < audioData.length; i++) {
-              audioData[i] = view.getFloat32(i * 4, true) || 0;
-            }
+          // Use the unified transcriber
+          const result = await unifiedTranscriber.transcribe(audioBlob);
 
-            // Send audio data to the stream processor
-            window.stream.set_audio(streamId, audioData);
-          } catch (error) {
-            console.error('Error processing recorded audio:', error);
-          }
+          // Update UI with results
+          setTranscription(result.text);
+          setStatus(`Transcription complete (${result.backend} backend)`);
+
+          console.log('Transcription result:', result);
+
+        } catch (error) {
+          console.error('Error processing recorded audio:', error);
+          setStatus('Error processing audio');
         }
       };
 
-      // Start recording in small chunks
-      mediaRecorder.start(100); // 100ms chunks
+      // Start recording
+      mediaRecorder.start();
       setIsRecording(true);
-      setStatus('Recording... Speak now!');
+      setStatus(`Recording with ${unifiedTranscriber.backend} backend... Speak now!`);
 
     } catch (error) {
       console.error('Error starting recording:', error);
       setStatus('Error accessing microphone');
     }
-  }, [streamId]);
+  }, [unifiedTranscriber]);
 
   const stopRecording = useCallback(() => {
     // Stop all media tracks
@@ -318,14 +310,20 @@ export default function StreamUnderstandSalah({}: StreamUnderstandSalahProps) {
         </p>
 
         {/* Status */}
-        <div className="mt-3">
+        <div className="mt-3 space-y-2">
           <Badge variant="secondary" className={`${
-            status.includes('Ready') || status.includes('loaded') ? 'bg-green-600' :
+            status.includes('Ready') || status.includes('loaded') || status.includes('complete') ? 'bg-green-600' :
             status.includes('Error') || status.includes('Failed') ? 'bg-red-600' :
             'bg-blue-600'
           }`}>
             {status}
           </Badge>
+          <div className="text-xs text-gray-400">
+            Backend: <span className="font-mono text-white">{unifiedTranscriber.backend.toUpperCase()}</span>
+            {unifiedTranscriber.currentModel && (
+              <> | Model: <span className="font-mono text-white">{unifiedTranscriber.currentModel}</span></>
+            )}
+          </div>
         </div>
       </div>
 
@@ -367,7 +365,7 @@ export default function StreamUnderstandSalah({}: StreamUnderstandSalahProps) {
                           <Button
                             size="sm"
                             onClick={() => loadModel(model.id)}
-                            disabled={status.includes('Loading')}
+                            disabled={unifiedTranscriber.isLoading || status.includes('Loading')}
                             className="bg-blue-600 hover:bg-blue-700"
                           >
                             <Download className="w-3 h-3 mr-1" />
@@ -401,7 +399,7 @@ export default function StreamUnderstandSalah({}: StreamUnderstandSalahProps) {
             {!isRecording ? (
               <Button
                 onClick={startRecording}
-                disabled={!streamId}
+                disabled={!unifiedTranscriber.isReady}
                 className="bg-red-600 hover:bg-red-700 text-white px-6 py-3 disabled:opacity-50"
                 size="lg"
               >
