@@ -1,25 +1,22 @@
 import { createClient } from '@supabase/supabase-js'
 
-if (!process.env.SUPABASE_URL) {
-  throw new Error('Missing SUPABASE_URL environment variable')
-}
+// Conditionally initialize Supabase
+export const supabaseAdmin = process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY
+  ? createClient(
+      process.env.SUPABASE_URL,
+      process.env.SUPABASE_SERVICE_ROLE_KEY,
+      {
+        auth: {
+          autoRefreshToken: false,
+          persistSession: false,
+        },
+      }
+    )
+  : null
 
-if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
-  throw new Error('Missing SUPABASE_SERVICE_ROLE_KEY environment variable')
+if (!supabaseAdmin) {
+  console.warn('⚠️ Supabase not configured - database features disabled')
 }
-
-// Admin client with service role key (server-side only)
-// This bypasses RLS and should only be used on the server
-export const supabaseAdmin = createClient(
-  process.env.SUPABASE_URL,
-  process.env.SUPABASE_SERVICE_ROLE_KEY,
-  {
-    auth: {
-      autoRefreshToken: false,
-      persistSession: false,
-    },
-  }
-)
 
 // Types for database tables
 export interface Subscription {
@@ -50,6 +47,10 @@ export const createUserWithSubscription = async (
   stripeCustomerId?: string,
   stripeSubscriptionId?: string
 ): Promise<{ userId: string; error: Error | null }> => {
+  if (!supabaseAdmin) {
+    return { userId: '', error: new Error('Supabase not configured') }
+  }
+
   try {
     // Check if user already exists
     const { data: existingUsers } = await supabaseAdmin.auth.admin.listUsers()
@@ -113,6 +114,10 @@ const getExpiryDate = (planType: 'monthly' | 'lifetime'): string | null => {
 
 // Send magic link to user
 export const sendMagicLink = async (email: string): Promise<{ error: Error | null }> => {
+  if (!supabaseAdmin) {
+    return { error: new Error('Supabase not configured') }
+  }
+
   try {
     const { error } = await supabaseAdmin.auth.admin.generateLink({
       type: 'magiclink',
@@ -133,6 +138,10 @@ export const sendMagicLink = async (email: string): Promise<{ error: Error | nul
 
 // Get user's subscription status
 export const getUserSubscription = async (userId: string): Promise<Subscription | null> => {
+  if (!supabaseAdmin) {
+    return null
+  }
+
   const { data, error } = await supabaseAdmin
     .from('subscriptions')
     .select('*')

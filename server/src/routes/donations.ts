@@ -3,8 +3,13 @@ import Stripe from 'stripe'
 
 const router = Router()
 
-// Initialize Stripe with secret key
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!)
+// Initialize Stripe with secret key (only if available)
+let stripe: Stripe | null = null
+if (process.env.STRIPE_SECRET_KEY) {
+  stripe = new Stripe(process.env.STRIPE_SECRET_KEY)
+} else {
+  console.warn('⚠️ STRIPE_SECRET_KEY not found - payment features disabled')
+}
 
 // Construct frontend URL from environment variables
 // Priority: FRONTEND_URL > RAILWAY_PUBLIC_DOMAIN > localhost fallback
@@ -27,7 +32,12 @@ interface CreateCheckoutSessionRequest {
   email?: string
 }
 
-router.post('/create-checkout-session', async (req, res): Promise<void> => {
+router.post('/create-checkout-session', async (req, res) => {
+  if (!stripe) {
+    res.status(500).json({ error: 'Payment system not configured' })
+    return
+  }
+
   try {
     const { amount, frequency, email }: CreateCheckoutSessionRequest = req.body
 
@@ -125,6 +135,11 @@ router.post('/create-checkout-session', async (req, res): Promise<void> => {
 
 // Webhook endpoint for Stripe events (payment confirmations, etc.)
 router.post('/webhook', async (req, res): Promise<void> => {
+  if (!stripe) {
+    res.status(500).json({ error: 'Payment system not configured' })
+    return
+  }
+
   const sig = req.headers['stripe-signature'] as string
   const endpointSecret = process.env.STRIPE_WEBHOOK_SECRET
 

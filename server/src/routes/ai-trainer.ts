@@ -33,7 +33,12 @@ interface ChatRequest {
 }
 
 // Main chat endpoint with RAG
-router.post('/chat', async (req: Request, res: Response): Promise<void> => {
+router.post('/chat', async (req: Request, res: Response) => {
+  if (!supabaseAdmin) {
+    res.status(500).json({ error: 'Database not configured' })
+    return
+  }
+
   try {
     const { message, conversationHistory = [], videoContext }: ChatRequest = req.body
     const userId = req.headers['x-user-id'] as string || 'anonymous'
@@ -106,7 +111,12 @@ interface EmbedRequest {
   videoId?: string
 }
 
-router.post('/embed', async (req: Request, res: Response): Promise<void> => {
+router.post('/embed', async (req: Request, res: Response) => {
+  if (!supabaseAdmin) {
+    res.status(500).json({ error: 'Database not configured' })
+    return
+  }
+
   try {
     const { title, content, category, videoId }: EmbedRequest = req.body
 
@@ -155,7 +165,12 @@ router.post('/embed', async (req: Request, res: Response): Promise<void> => {
 })
 
 // Get all documents (for admin panel)
-router.get('/documents', async (_req: Request, res: Response): Promise<void> => {
+router.get('/documents', async (_req: Request, res: Response) => {
+  if (!supabaseAdmin) {
+    res.status(500).json({ error: 'Database not configured' })
+    return
+  }
+
   try {
     const { data, error } = await supabaseAdmin
       .from('documents')
@@ -175,7 +190,12 @@ router.get('/documents', async (_req: Request, res: Response): Promise<void> => 
 })
 
 // Delete a document (admin only)
-router.delete('/documents/:id', async (req: Request, res: Response): Promise<void> => {
+router.delete('/documents/:id', async (req: Request, res: Response) => {
+  if (!supabaseAdmin) {
+    res.status(500).json({ error: 'Database not configured' })
+    return
+  }
+
   try {
     const { id } = req.params
 

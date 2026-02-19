@@ -4,8 +4,13 @@ import { createUserWithSubscription } from '../lib/supabase.js'
 
 const router = Router()
 
-// Initialize Stripe with secret key
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!)
+// Initialize Stripe with secret key (only if available)
+let stripe: Stripe | null = null
+if (process.env.STRIPE_SECRET_KEY) {
+  stripe = new Stripe(process.env.STRIPE_SECRET_KEY)
+} else {
+  console.warn('⚠️ STRIPE_SECRET_KEY not found - PainFreeSalah payments disabled')
+}
 
 // Construct frontend URL from environment variables
 const getFrontendUrl = (): string => {
@@ -42,7 +47,7 @@ interface CreateCheckoutRequest {
   email?: string
 }
 
-router.post('/create-checkout', async (req, res): Promise<void> => {
+router.post('/create-checkout', async (req, res) => {
   try {
     const { plan, surveyData, email }: CreateCheckoutRequest = req.body
 
@@ -119,6 +124,10 @@ router.post('/create-checkout', async (req, res): Promise<void> => {
       }
     }
 
+    if (!stripe) {
+      return res.status(500).json({ error: 'Payment system not configured' })
+    }
+
     const session = await stripe.checkout.sessions.create(sessionConfig)
 
     res.json({
@@ -146,6 +155,12 @@ router.post('/webhook', async (req: Request, res: Response): Promise<void> => {
   if (!webhookSecret) {
     console.error('Stripe webhook secret not configured')
     res.status(500).json({ error: 'Webhook secret not configured' })
+    return
+  }
+
+  if (!stripe) {
+    console.error('Stripe not configured for webhook processing')
+    res.status(500).json({ error: 'Payment system not configured' })
     return
   }
 
@@ -246,6 +261,10 @@ router.post('/send-magic-link', async (req: Request, res: Response): Promise<voi
 
     // Import supabaseAdmin dynamically to avoid initialization issues
     const { supabaseAdmin } = await import('../lib/supabase.js')
+
+    if (!supabaseAdmin) {
+      throw new Error('Database not configured')
+    }
 
     const { error } = await supabaseAdmin.auth.admin.generateLink({
       type: 'magiclink',
