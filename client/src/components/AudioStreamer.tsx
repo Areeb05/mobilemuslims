@@ -18,6 +18,7 @@ export default function AudioStreamer({ endpoint = '/api/stream' }: AudioStreame
   const [error, setError] = useState('')
   const [connectionStatus, setConnectionStatus] = useState<'connecting' | 'connected' | 'disconnected'>('connecting')
   const [fullscreenMode, setFullscreenMode] = useState<'arabic' | 'english' | null>(null)
+  const [quranReferences, setQuranReferences] = useState<string[]>([])
 
   const socketRef = useRef<Socket | null>(null)
   const mediaRecorderRef = useRef<MediaRecorder | null>(null)
@@ -81,6 +82,11 @@ export default function AudioStreamer({ endpoint = '/api/stream' }: AudioStreame
       setTranslation(data)
     })
 
+    socketRef.current.on('quranReferences', (payload: { references?: string[] }) => {
+      const refs = Array.isArray(payload?.references) ? payload.references : []
+      setQuranReferences(refs)
+    })
+
     socketRef.current.on('error', (err: string) => {
       setError(err)
       setConnectionStatus('disconnected')
@@ -142,6 +148,10 @@ export default function AudioStreamer({ endpoint = '/api/stream' }: AudioStreame
       const stream = await navigator.mediaDevices.getUserMedia(constraints)
       setIsRecording(true)
       setError('')
+      setQuranReferences([])
+      if (socketRef.current?.connected) {
+        socketRef.current.emit('recordingSessionStart')
+      }
 
       // Use modern AudioWorklet API instead of deprecated ScriptProcessor
       audioContextRef.current = new (window.AudioContext || (window as any).webkitAudioContext)({
@@ -418,7 +428,7 @@ export default function AudioStreamer({ endpoint = '/api/stream' }: AudioStreame
                 </button>
               </div>
             </CardHeader>
-            <CardContent className="py-2 px-4">
+            <CardContent className="py-2 px-4 space-y-2">
               <div
                 ref={englishScrollRef}
                 className="h-32 md:h-40 lg:h-48 overflow-y-auto scrollbar-thin scrollbar-thumb-muted scrollbar-track-transparent flex flex-col justify-end"
@@ -427,6 +437,16 @@ export default function AudioStreamer({ endpoint = '/api/stream' }: AudioStreame
                   {translation || 'Translation will appear here...'}
                 </p>
               </div>
+              {quranReferences.length > 0 && (
+                <div className="flex flex-wrap items-center justify-center gap-1.5 pt-1 border-t border-border/40">
+                  <span className="text-[10px] uppercase tracking-wide text-muted-foreground">Surah/Ayat</span>
+                  {quranReferences.map((ref) => (
+                    <Badge key={ref} variant="secondary" className="text-xs font-mono tabular-nums">
+                      {ref}
+                    </Badge>
+                  ))}
+                </div>
+              )}
             </CardContent>
           </Card>
         </div>

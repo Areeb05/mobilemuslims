@@ -29,6 +29,72 @@ export const MODELS = {
 // Default model for chat
 export const DEFAULT_CHAT_MODEL = MODELS.GROK_MINI
 
+/** System prompt for mapping English salah-related translation to Quran surah:ayah references. */
+export const SALAH_QURAN_CATEGORIZER_PROMPT = `You map short English text that often appears during Salah (Quranic verses, common duas, takbir, tashahhud, etc.) to the most likely Quran location(s).
+
+Rules:
+- Respond with ONLY a single JSON object, no markdown fences, no other text.
+- Shape: {"references":["S:A",...]} where S is surah number 1-114 and A is ayah number (e.g. "53:13", "1:1").
+- Order references by relevance (most likely first). Use at most 5 entries.
+- If the text is clearly not from the Quran (e.g. small talk), use {"references":[]}.
+- For partial phrases, still give the best-matching verse(s) if reasonably identifiable.`
+
+/**
+ * Calls OpenRouter to infer surah:ayah references from English translation text.
+ *
+ * @param englishText - Latest English translation from the stream
+ * @returns Parsed reference strings like "53:13", or empty if unavailable or unparseable
+ */
+export const categorizeSalahTranslationToQuranRefs = async (
+  englishText: string
+): Promise<string[]> => {
+  const trimmed = englishText.trim()
+  if (!process.env.OPENROUTER_API_KEY || !trimmed) {
+    return []
+  }
+
+  const response = await openrouter.chat.completions.create({
+    model: DEFAULT_CHAT_MODEL,
+    messages: [
+      { role: 'system', content: SALAH_QURAN_CATEGORIZER_PROMPT },
+      {
+        role: 'user',
+        content: `English text to categorize:\n\n${trimmed}`,
+      },
+    ],
+    temperature: 0.15,
+    max_tokens: 256,
+  })
+
+  const raw = response.choices[0]?.message?.content?.trim() ?? ''
+  const jsonMatch = raw.match(/\{[\s\S]*\}/)
+  if (!jsonMatch) {
+    return []
+  }
+
+  try {
+    const parsed = JSON.parse(jsonMatch[0]) as { references?: unknown }
+    if (!Array.isArray(parsed.references)) {
+      return []
+    }
+    const refPattern = /^(\d{1,3}):(\d{1,3})$/
+    const out: string[] = []
+    for (const item of parsed.references) {
+      if (typeof item !== 'string' || out.length >= 5) break
+      const m = item.trim().match(refPattern)
+      if (!m) continue
+      const surah = Number(m[1])
+      const ayah = Number(m[2])
+      if (surah >= 1 && surah <= 114 && ayah >= 1) {
+        out.push(`${surah}:${ayah}`)
+      }
+    }
+    return out
+  } catch {
+    return []
+  }
+}
+
 // System prompt for the AI trainer
 export const TRAINER_SYSTEM_PROMPT = `You are a personal mobility trainer for the Pain Free Salah program. 
 Your goal is to help Muslims pray comfortably by providing exercise guidance and answering questions about mobility.

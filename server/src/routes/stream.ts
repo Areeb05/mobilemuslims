@@ -2,6 +2,7 @@ import { SpeechClient } from '@google-cloud/speech'
 import { v2 as cloudTranslate } from '@google-cloud/translate'
 import type { Server, Socket } from 'socket.io'
 import dotenv from 'dotenv'
+import { categorizeSalahTranslationToQuranRefs } from '../lib/openrouter.js'
 
 // Load environment variables for this module
 dotenv.config()
@@ -35,6 +36,16 @@ try {
   console.warn('Running in demo mode without Google Cloud services')
 }
 
+/** How often to send accumulated English text to the LLM for surah:ayah hints (ms). */
+const QURAN_CATEGORIZER_INTERVAL_MS = Number(process.env.QURAN_CATEGORIZER_INTERVAL_MS) || 12_000
+
+/**
+ * One-shot delay after the client starts recording before the first categorizer run (ms).
+ * Lets STT + translate produce English before we call the LLM; subsequent runs use the interval above.
+ */
+const QURAN_CATEGORIZER_INITIAL_DELAY_MS =
+  Number(process.env.QURAN_CATEGORIZER_INITIAL_DELAY_MS) || 4_000
+
 // Initialize Google Cloud clients
 let speechClient: SpeechClient | null = null
 let translateClient: cloudTranslate.Translate | null = null
@@ -56,7 +67,12 @@ export function setupSocketHandlers(io: Server) {
     console.log('👤 Client connected:', socket.id)
 
     let latestTranscription = ''
+    let latestTranslation = ''
     let translationInterval: NodeJS.Timeout | null = null
+    let quranCategorizerInterval: NodeJS.Timeout | null = null
+    let quranCategorizerInitialTimeout: NodeJS.Timeout | null = null
+    let lastCategorizedTranslation = ''
+    let quranCategorizerInFlight = false
     let recognizeStream: any = null
     let isClientConnected = true
     let streamRecreationTimeout: NodeJS.Timeout | null = null
@@ -143,6 +159,26 @@ export function setupSocketHandlers(io: Server) {
       }, 100)
     }
 
+    const runQuranCategorizer = async () => {
+      const text = latestTranslation.trim()
+      if (!text || text === lastCategorizedTranslation || quranCategorizerInFlight) {
+        return
+      }
+      quranCategorizerInFlight = true
+      const snapshot = text
+      try {
+        const references = await categorizeSalahTranslationToQuranRefs(snapshot)
+        lastCategorizedTranslation = snapshot
+        if (references.length > 0 && isClientConnected) {
+          socket.emit('quranReferences', { references })
+        }
+      } catch (err) {
+        console.warn('📖 Quran categorizer error:', err)
+      } finally {
+        quranCategorizerInFlight = false
+      }
+    }
+
     if (speechClient) {
       // Initialize speech recognition for this client
       // Note: 'latest_long' and 'useEnhanced' are NOT supported for Arabic (ar-XA)
@@ -153,6 +189,7 @@ export function setupSocketHandlers(io: Server) {
         if (latestTranscription && translateClient) {
           try {
             const [translation] = await translateClient.translate(latestTranscription, 'en')
+            latestTranslation = translation
             socket.emit('translation', translation)
           } catch (err) {
             console.error('🌐 Translation error:', err)
@@ -173,10 +210,33 @@ export function setupSocketHandlers(io: Server) {
       translationInterval = setInterval(() => {
         if (latestTranscription) {
           const mockTranslation = latestTranscription + ' (Demo Translation)'
+          latestTranslation = mockTranslation
           socket.emit('translation', mockTranslation)
         }
       }, 1000)
     }
+
+    if (process.env.OPENROUTER_API_KEY) {
+      quranCategorizerInterval = setInterval(() => {
+        void runQuranCategorizer()
+      }, QURAN_CATEGORIZER_INTERVAL_MS)
+    } else {
+      console.log('📖 Quran categorizer disabled (no OPENROUTER_API_KEY)')
+    }
+
+    socket.on('recordingSessionStart', () => {
+      lastCategorizedTranslation = ''
+      if (quranCategorizerInitialTimeout) {
+        clearTimeout(quranCategorizerInitialTimeout)
+        quranCategorizerInitialTimeout = null
+      }
+      if (process.env.OPENROUTER_API_KEY) {
+        quranCategorizerInitialTimeout = setTimeout(() => {
+          quranCategorizerInitialTimeout = null
+          void runQuranCategorizer()
+        }, QURAN_CATEGORIZER_INITIAL_DELAY_MS)
+      }
+    })
 
     // Handle audio data from client
     socket.on('audio', (data: any) => {
@@ -206,6 +266,16 @@ export function setupSocketHandlers(io: Server) {
       if (translationInterval) {
         clearInterval(translationInterval)
         translationInterval = null
+      }
+
+      if (quranCategorizerInterval) {
+        clearInterval(quranCategorizerInterval)
+        quranCategorizerInterval = null
+      }
+
+      if (quranCategorizerInitialTimeout) {
+        clearTimeout(quranCategorizerInitialTimeout)
+        quranCategorizerInitialTimeout = null
       }
 
       if (recognizeStream) {
