@@ -3,7 +3,7 @@ import { BrowserRouter, Routes, Route, useLocation } from 'react-router-dom'
 import { AuthProvider } from './contexts/AuthContext'
 import Home from './pages/Home'
 import UnderstandSalah from './pages/UnderstandSalah'
-import StreamUnderstandSalah from './pages/StreamUnderstandSalah'
+import UnderstandSalahOffline from './pages/UnderstandSalahOffline'
 import Donate from './pages/Donate'
 import PainFreeSalah from './pages/PainFreeSalah'
 import PainFreeSalahPricing from './pages/PainFreeSalahPricing'
@@ -20,7 +20,7 @@ function AppContent() {
   const location = useLocation()
 
   // Only show donation banner on the Understand Salah page
-  const showBannerOnPaths = ['/understandsalah']
+  const showBannerOnPaths = ['/understandsalah', '/understandsalahoffline']
   const shouldShowBanner = showBannerOnPaths.includes(location.pathname)
 
   return (
@@ -28,7 +28,7 @@ function AppContent() {
       <Routes>
         <Route path="/" element={<Home />} />
         <Route path="/understandsalah" element={<UnderstandSalah />} />
-        <Route path="/understandsalahoffline" element={<StreamUnderstandSalah />} />
+        <Route path="/understandsalahoffline" element={<UnderstandSalahOffline />} />
         <Route path="/painfreesalah" element={<PainFreeSalah />} />
         <Route path="/painfreesalah/pricing" element={<PainFreeSalahPricing />} />
         <Route path="/painfreesalah/login" element={<PFSLogin />} />
