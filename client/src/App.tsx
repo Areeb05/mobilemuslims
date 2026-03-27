@@ -4,6 +4,7 @@ import { AuthProvider } from './contexts/AuthContext'
 import Home from './pages/Home'
 import UnderstandSalah from './pages/UnderstandSalah'
 import UnderstandSalahOffline from './pages/UnderstandSalahOffline'
+import QuranVerseFinder from './pages/QuranVerseFinder'
 import Donate from './pages/Donate'
 import PainFreeSalah from './pages/PainFreeSalah'
 import PainFreeSalahPricing from './pages/PainFreeSalahPricing'
@@ -29,6 +30,7 @@ function AppContent() {
         <Route path="/" element={<Home />} />
         <Route path="/understandsalah" element={<UnderstandSalah />} />
         <Route path="/understandsalahoffline" element={<UnderstandSalahOffline />} />
+        <Route path="/quran-finder" element={<QuranVerseFinder />} />
         <Route path="/painfreesalah" element={<PainFreeSalah />} />
         <Route path="/painfreesalah/pricing" element={<PainFreeSalahPricing />} />
         <Route path="/painfreesalah/login" element={<PFSLogin />} />

@@ -16,7 +16,8 @@
     "start": "npm run start --workspace=server",
     "install:all": "npm install",
     "clean": "rm -rf client/node_modules server/node_modules node_modules client/dist server/dist",
-    "lint": "npm run lint --workspace=client && npm run lint --workspace=server"
+    "lint": "npm run lint --workspace=client && npm run lint --workspace=server",
+    "build:quran-corpus": "node scripts/build-quran-corpus.mjs"
   },
   "devDependencies": {
     "concurrently": "^8.2.2"

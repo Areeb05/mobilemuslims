@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom'
-import { Instagram, Heart, Mic2, Sparkles } from 'lucide-react'
+import { Instagram, Heart, Mic2, Sparkles, BookOpen } from 'lucide-react'
 
 // TikTok icon (not in lucide-react)
 const TikTokIcon = ({ className }: { className?: string }) => (
@@ -31,6 +31,12 @@ const links: LinkItem[] = [
     label: 'Understand Salah Offline',
     href: '/understandsalahoffline',
     icon: <Mic2 className="h-5 w-5" />,
+    external: false,
+  },
+  {
+    label: 'Quran verse finder',
+    href: '/quran-finder',
+    icon: <BookOpen className="h-5 w-5" />,
     external: false,
   },
   {
