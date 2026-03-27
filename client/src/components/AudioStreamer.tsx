@@ -313,7 +313,7 @@ export default function AudioStreamer({ endpoint = '/api/stream' }: AudioStreame
           {/* Scrollable Content */}
           <div 
             ref={fullscreenScrollRef}
-            className="flex-1 overflow-y-auto p-6 flex flex-col justify-end"
+            className="flex-1 overflow-y-auto p-6 flex flex-col justify-start"
           >
             <p 
               className={`text-white text-2xl md:text-3xl lg:text-4xl leading-relaxed text-center whitespace-pre-wrap ${
@@ -398,7 +398,7 @@ export default function AudioStreamer({ endpoint = '/api/stream' }: AudioStreame
             <CardContent className="py-2 px-4">
               <div
                 ref={arabicScrollRef}
-                className="h-32 md:h-40 lg:h-48 overflow-y-auto scrollbar-thin scrollbar-thumb-muted scrollbar-track-transparent flex flex-col justify-end"
+                className="h-32 md:h-40 lg:h-48 overflow-y-auto scrollbar-thin scrollbar-thumb-muted scrollbar-track-transparent flex flex-col justify-start"
               >
                 <p className="text-foreground text-lg md:text-xl leading-relaxed text-center font-arabic whitespace-pre-wrap max-w-full" dir="rtl">
                   {transcription || 'Waiting for speech...'}
@@ -431,7 +431,7 @@ export default function AudioStreamer({ endpoint = '/api/stream' }: AudioStreame
             <CardContent className="py-2 px-4 space-y-2">
               <div
                 ref={englishScrollRef}
-                className="h-32 md:h-40 lg:h-48 overflow-y-auto scrollbar-thin scrollbar-thumb-muted scrollbar-track-transparent flex flex-col justify-end"
+                className="h-32 md:h-40 lg:h-48 overflow-y-auto scrollbar-thin scrollbar-thumb-muted scrollbar-track-transparent flex flex-col justify-start"
               >
                 <p className="text-foreground text-lg md:text-xl leading-relaxed text-center whitespace-pre-wrap max-w-full">
                   {translation || 'Translation will appear here...'}
