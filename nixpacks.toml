@@ -1,0 +1,4 @@
+# Install devDependencies (typescript, vite, etc.) even when NODE_ENV=production is set
+# during the image build (e.g. Railway production). Required for workspace client/server builds.
+[phases.install]
+cmds = ['npm ci --include=dev']

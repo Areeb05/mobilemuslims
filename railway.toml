@@ -12,9 +12,13 @@ healthcheckTimeout = 300
 restartPolicyType = "ON_FAILURE"
 restartPolicyMaxRetries = 10
 
+# NODE_ENV must not live at environment root — Railway can apply it during Nixpacks install,
+# which makes npm ci skip devDependencies (tsc/vite missing → exit 127). Set production only on the start command.
 [environments.production]
-NODE_ENV = "production"
 CLIENT_URL = "${{RAILWAY_STATIC_URL}}"
+
+[environments.production.deploy]
+startCommand = "cd server && NODE_ENV=production npm run start"
 
 # Note: GOOGLE_CREDENTIALS_JSON should be set as a Railway secret in the dashboard
 # Do not include sensitive credentials in config files
