@@ -88,33 +88,22 @@ export function useTransformersUnderstandSalah(): UseTransformersUnderstandSalah
         env.allowLocalModels = false
         env.useBrowserCache = true
 
-        const webgpu = typeof navigator !== 'undefined' && !!(navigator as Navigator & { gpu?: unknown }).gpu
-        const asrDevice = webgpu ? 'webgpu' : 'wasm'
+        // ONNX Runtime Web loads .wasm from jsDelivr. WebGPU-first + wasm fallback ran the full
+        // download/progress stream twice and looked like doubled percentages; use wasm+fp32 once.
+        setStatusDetail('Loading speech (wasm)…')
 
-        setStatusDetail(`Loading speech (${asrDevice})…`)
-
-        const asrProgress = (e: { progress?: number; status?: string }) => {
+        const asrProgress = (e: { progress?: number }) => {
           if (typeof e?.progress === 'number') {
-            setStatusDetail(`Loading speech… ${Math.round(e.progress)}%`)
+            const pct = Math.min(100, Math.max(0, Math.round(e.progress)))
+            setStatusDetail(`Loading speech… ${pct}%`)
           }
         }
 
-        let asr: AsrFn
-        try {
-          asr = (await pipeline('automatic-speech-recognition', WHISPER_MODEL, {
-            device: asrDevice,
-            dtype: webgpu ? 'fp32' : 'q8',
-            progress_callback: asrProgress,
-          })) as AsrFn
-        } catch (firstErr) {
-          if (cancelled) return
-          console.warn('Whisper load retry with fp32/wasm', firstErr)
-          asr = (await pipeline('automatic-speech-recognition', WHISPER_MODEL, {
-            device: 'wasm',
-            dtype: 'fp32',
-            progress_callback: asrProgress,
-          })) as AsrFn
-        }
+        const asr = (await pipeline('automatic-speech-recognition', WHISPER_MODEL, {
+          device: 'wasm',
+          dtype: 'fp32',
+          progress_callback: asrProgress,
+        })) as AsrFn
 
         if (cancelled) return
 
@@ -127,7 +116,8 @@ export function useTransformersUnderstandSalah(): UseTransformersUnderstandSalah
             dtype: 'q8',
             progress_callback: (e: { progress?: number }) => {
               if (typeof e?.progress === 'number') {
-                setStatusDetail(`Loading translation… ${Math.round(e.progress)}%`)
+                const pct = Math.min(100, Math.max(0, Math.round(e.progress)))
+                setStatusDetail(`Loading translation… ${pct}%`)
               }
             },
           })) as TranslateFn

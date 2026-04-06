@@ -31,6 +31,7 @@ const cspDirectives = {
     'https://huggingface.co',
     'https://cdn-lfs.huggingface.co',
     'https://*.xethub.hf.co',
+    'https://cdn.jsdelivr.net',
     'https://*.supabase.co',
     'wss://*.supabase.co',
   ],
