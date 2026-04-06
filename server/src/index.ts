@@ -51,15 +51,7 @@ app.use('/api/donations/webhook', express.raw({ type: 'application/json' }))
 // JSON parsing for all other routes
 app.use(express.json())
 
-// Serve static files from client build (for production)
-if (process.env.NODE_ENV === 'production') {
-  app.use(express.static(path.join(__dirname, '../../client/dist')))
-  app.get('*', (_req, res) => {
-    res.sendFile(path.join(__dirname, '../../client/dist/index.html'))
-  })
-}
-
-// API Routes
+// API Routes (register before SPA fallback in production so /api/* is not swallowed)
 app.get('/api/health', (_req, res) => {
   res.json({
     status: 'ok',
@@ -87,6 +79,14 @@ app.use('/api/models', modelRoutes)
 // Import and setup WebSocket handlers
 import { setupSocketHandlers } from './routes/stream.js'
 setupSocketHandlers(io)
+
+// Serve static files from client build (for production) — after API routes
+if (process.env.NODE_ENV === 'production') {
+  app.use(express.static(path.join(__dirname, '../../client/dist')))
+  app.get('*', (_req, res) => {
+    res.sendFile(path.join(__dirname, '../../client/dist/index.html'))
+  })
+}
 
 const PORT = process.env.PORT || 3001
 server.listen(PORT, () => {
