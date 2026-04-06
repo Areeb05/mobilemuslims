@@ -74,10 +74,6 @@ app.use('/api/painfreesalah', painfreesalahRoutes)
 import aiTrainerRoutes from './routes/ai-trainer.js'
 app.use('/api/ai-trainer', aiTrainerRoutes)
 
-// Model download routes
-import modelRoutes from './routes/models.js'
-app.use('/api/models', modelRoutes)
-
 // Import and setup WebSocket handlers
 import { setupSocketHandlers } from './routes/stream.js'
 setupSocketHandlers(io)

@@ -110,26 +110,20 @@ export function useTransformersUnderstandSalah(): UseTransformersUnderstandSalah
         asrRef.current = asr
 
         setStatusDetail('Loading translation…')
-        try {
-          const translatorPipeline = (await pipeline('translation', TRANSLATION_MODEL, {
-            device: 'wasm',
-            dtype: 'q8',
-            progress_callback: (e: { progress?: number }) => {
-              if (typeof e?.progress === 'number') {
-                const pct = Math.min(100, Math.max(0, Math.round(e.progress)))
-                setStatusDetail(`Loading translation… ${pct}%`)
-              }
-            },
-          })) as TranslateFn
-          if (!cancelled) {
-            translatorRef.current = translatorPipeline
-          }
-        } catch (trErr) {
-          console.warn('Translation model failed to load; Arabic-only offline mode.', trErr)
-          translatorRef.current = null
-        }
+        const translatorPipeline = (await pipeline('translation', TRANSLATION_MODEL, {
+          device: 'wasm',
+          dtype: 'q8',
+          progress_callback: (e: { progress?: number }) => {
+            if (typeof e?.progress === 'number') {
+              const pct = Math.min(100, Math.max(0, Math.round(e.progress)))
+              setStatusDetail(`Loading translation… ${pct}%`)
+            }
+          },
+        })) as TranslateFn
 
         if (cancelled) return
+
+        translatorRef.current = translatorPipeline
 
         setEngineStatus('ready')
         setStatusDetail('Ready')
