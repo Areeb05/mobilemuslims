@@ -23,8 +23,24 @@ const io = new Server(server, {
   }
 })
 
-// Middleware
-app.use(helmet())
+// Middleware — allow browser fetches to Hugging Face Hub / LFS for offline Transformers.js models
+const cspDirectives = {
+  ...helmet.contentSecurityPolicy.getDefaultDirectives(),
+  connectSrc: [
+    "'self'",
+    'https://huggingface.co',
+    'https://cdn-lfs.huggingface.co',
+    'https://*.supabase.co',
+    'wss://*.supabase.co',
+  ],
+}
+app.use(
+  helmet({
+    contentSecurityPolicy: {
+      directives: cspDirectives,
+    },
+  }),
+)
 app.use(cors())
 
 // Stripe webhooks need raw body for signature verification

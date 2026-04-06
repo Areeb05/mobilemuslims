@@ -15,7 +15,10 @@ interface DonationBannerProps {
 export default function DonationBanner({ open, onOpenChange }: DonationBannerProps) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-sm bg-card/95 border-border/50 backdrop-blur-md p-4">
+      <DialogContent
+        className="sm:max-w-sm bg-card/95 border-border/50 backdrop-blur-md p-4"
+        aria-describedby={undefined}
+      >
         <DialogHeader className="text-center space-y-1 pb-2">
           <div className="flex items-center justify-center gap-2">
             <Heart className="h-4 w-4 text-primary" />
