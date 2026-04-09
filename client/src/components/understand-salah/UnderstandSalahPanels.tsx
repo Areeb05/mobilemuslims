@@ -20,6 +20,9 @@ export interface UnderstandSalahPanelsProps {
   /** If empty, Surah/Ayat row is hidden */
   quranReferences?: readonly string[]
   onToggleRecord: () => void
+  /** Optional action when error is shown (e.g. offline model reload); online flow omits */
+  errorActionLabel?: string
+  onErrorAction?: () => void
 }
 
 /**
@@ -37,6 +40,8 @@ export default function UnderstandSalahPanels({
   error,
   quranReferences = [],
   onToggleRecord,
+  errorActionLabel,
+  onErrorAction,
 }: UnderstandSalahPanelsProps) {
   const [fullscreenMode, setFullscreenMode] = useState<'arabic' | 'english' | null>(null)
   const arabicScrollRef = useRef<HTMLDivElement | null>(null)
@@ -154,7 +159,14 @@ export default function UnderstandSalahPanels({
 
         {error ? (
           <Alert variant="destructive" className="max-w-md mx-auto">
-            <AlertDescription className="text-sm">{error}</AlertDescription>
+            <AlertDescription className="text-sm space-y-2">
+              <p>{error}</p>
+              {onErrorAction && errorActionLabel ? (
+                <Button type="button" variant="outline" size="sm" className="mt-1" onClick={onErrorAction}>
+                  {errorActionLabel}
+                </Button>
+              ) : null}
+            </AlertDescription>
           </Alert>
         ) : null}
 

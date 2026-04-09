@@ -1,6 +1,7 @@
 import { useCallback, useRef, useState } from 'react'
 import UnderstandSalahPanels from './understand-salah/UnderstandSalahPanels'
 import { useTransformersUnderstandSalah } from '../hooks/useTransformersUnderstandSalah'
+import { resampleMonoFloat32ToPcm16 } from '../lib/resampleAudio'
 
 /** Client-only Understand Salah: Whisper ASR + opus-mt via Transformers.js; UI matches online AudioStreamer. */
 export default function OfflineAudioStreamer() {
@@ -14,6 +15,7 @@ export default function OfflineAudioStreamer() {
     startInferenceLoop,
     stopInferenceLoop,
     resetSessionText,
+    retryLoadingModels,
   } = useTransformersUnderstandSalah()
 
   const [isRecording, setIsRecording] = useState(false)
@@ -21,11 +23,17 @@ export default function OfflineAudioStreamer() {
   const isRecordingRef = useRef(false)
   const audioContextRef = useRef<AudioContext | null>(null)
   const processorRef = useRef<ScriptProcessorNode | null>(null)
+  const workletNodeRef = useRef<AudioWorkletNode | null>(null)
+  const silenceGainRef = useRef<GainNode | null>(null)
   const sourceRef = useRef<MediaStreamAudioSourceNode | null>(null)
   const wakeLockRef = useRef<WakeLockSentinel | null>(null)
   const streamRef = useRef<MediaStream | null>(null)
 
   const tearDownAudio = useCallback(() => {
+    workletNodeRef.current?.disconnect()
+    workletNodeRef.current = null
+    silenceGainRef.current?.disconnect()
+    silenceGainRef.current = null
     if (processorRef.current) {
       processorRef.current.disconnect()
       processorRef.current = null
@@ -85,8 +93,10 @@ export default function OfflineAudioStreamer() {
       streamRef.current = stream
 
       const Ctx = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext
-      const ctx = new Ctx({ sampleRate: 16000, latencyHint: 'interactive' })
+      const ctx = new Ctx({ latencyHint: 'interactive' })
       audioContextRef.current = ctx
+      const hardwareRate = ctx.sampleRate
+
       if (ctx.state === 'suspended') {
         await ctx.resume()
       }
@@ -94,22 +104,52 @@ export default function OfflineAudioStreamer() {
       const source = ctx.createMediaStreamSource(stream)
       sourceRef.current = source
 
-      const bufferSize = 4096
-      const processor = ctx.createScriptProcessor(bufferSize, 1, 1)
-      processorRef.current = processor
+      const base = import.meta.env.BASE_URL.endsWith('/')
+        ? import.meta.env.BASE_URL
+        : `${import.meta.env.BASE_URL}/`
+      const workletUrl = new URL('offline-capture.worklet.js', window.location.origin + base).href
 
-      processor.onaudioprocess = (event: AudioProcessingEvent) => {
-        if (!isRecordingRef.current) return
-        const audioData = event.inputBuffer.getChannelData(0)
-        const int16 = new Int16Array(audioData.length)
-        for (let i = 0; i < audioData.length; i++) {
-          int16[i] = Math.max(-1, Math.min(1, audioData[i])) * 0x7fff
+      const attachWorklet = async () => {
+        await ctx.audioWorklet.addModule(workletUrl)
+        const node = new AudioWorkletNode(ctx, 'offline-capture-processor', {
+          numberOfInputs: 1,
+          numberOfOutputs: 1,
+          outputChannelCount: [1],
+          channelCount: 1,
+        })
+        workletNodeRef.current = node
+        node.port.onmessage = (ev: MessageEvent<Float32Array>) => {
+          if (!isRecordingRef.current) return
+          const data = ev.data
+          if (!(data instanceof Float32Array) || data.length === 0) return
+          const pcm = resampleMonoFloat32ToPcm16(data, hardwareRate)
+          if (pcm.byteLength) feedPcm16(pcm)
         }
-        feedPcm16(int16.buffer)
+        const silent = ctx.createGain()
+        silent.gain.value = 0
+        silenceGainRef.current = silent
+        source.connect(node)
+        node.connect(silent)
+        silent.connect(ctx.destination)
       }
 
-      source.connect(processor)
-      processor.connect(ctx.destination)
+      try {
+        await attachWorklet()
+      } catch (workletErr) {
+        console.warn('AudioWorklet unavailable; using ScriptProcessor fallback', workletErr)
+        const bufferSize = 4096
+        const processor = ctx.createScriptProcessor(bufferSize, 1, 1)
+        processorRef.current = processor
+        processor.onaudioprocess = (event: AudioProcessingEvent) => {
+          if (!isRecordingRef.current) return
+          const audioData = event.inputBuffer.getChannelData(0)
+          const rate = event.inputBuffer.sampleRate
+          const pcm = resampleMonoFloat32ToPcm16(audioData, rate)
+          if (pcm.byteLength) feedPcm16(pcm)
+        }
+        source.connect(processor)
+        processor.connect(ctx.destination)
+      }
 
       isRecordingRef.current = true
       setIsRecording(true)
@@ -154,6 +194,8 @@ export default function OfflineAudioStreamer() {
       error={displayError}
       quranReferences={[]}
       onToggleRecord={toggleRecording}
+      errorActionLabel={engineStatus === 'error' ? 'Retry loading models' : undefined}
+      onErrorAction={engineStatus === 'error' ? retryLoadingModels : undefined}
     />
   )
 }

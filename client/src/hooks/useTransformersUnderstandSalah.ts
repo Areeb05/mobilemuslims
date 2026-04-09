@@ -60,6 +60,8 @@ export interface UseTransformersUnderstandSalahResult {
   startInferenceLoop: () => void
   stopInferenceLoop: () => void
   resetSessionText: () => void
+  /** Re-run model download/init (e.g. after cache/network/private-mode issues) */
+  retryLoadingModels: () => void
 }
 
 /**
@@ -72,12 +74,25 @@ export function useTransformersUnderstandSalah(): UseTransformersUnderstandSalah
   const [transcription, setTranscription] = useState('')
   const [translation, setTranslation] = useState('')
   const [error, setError] = useState('')
+  const [loadGeneration, setLoadGeneration] = useState(0)
 
   const asrRef = useRef<AsrFn | null>(null)
   const translatorRef = useRef<TranslateFn | null>(null)
   const ringRef = useRef<Float32Array>(new Float32Array(0))
   const inferTimerRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const translateTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  const retryLoadingModels = useCallback(() => {
+    setEngineStatus('loading')
+    setStatusDetail('Loading models…')
+    setError('')
+    setTranscription('')
+    setTranslation('')
+    asrRef.current = null
+    translatorRef.current = null
+    ringRef.current = new Float32Array(0)
+    setLoadGeneration((g) => g + 1)
+  }, [])
 
   useEffect(() => {
     let cancelled = false
@@ -88,8 +103,17 @@ export function useTransformersUnderstandSalah(): UseTransformersUnderstandSalah
         env.allowLocalModels = false
         env.useBrowserCache = true
 
-        // ONNX Runtime Web loads .wasm from jsDelivr. WebGPU-first + wasm fallback ran the full
-        // download/progress stream twice and looked like doubled percentages; use wasm+fp32 once.
+        // Same-origin ORT .wasm (see client/public/onnx); avoids jsDelivr/ITP on Safari.
+        if (typeof window !== 'undefined') {
+          const onnx = env.backends?.onnx as { wasm?: { wasmPaths?: string } } | undefined
+          if (onnx?.wasm) {
+            const base = import.meta.env.BASE_URL.endsWith('/')
+              ? import.meta.env.BASE_URL
+              : `${import.meta.env.BASE_URL}/`
+            onnx.wasm.wasmPaths = `${window.location.origin}${base}onnx/`
+          }
+        }
+
         setStatusDetail('Loading speech (wasm)…')
 
         const asrProgress = (e: { progress?: number }) => {
@@ -132,8 +156,12 @@ export function useTransformersUnderstandSalah(): UseTransformersUnderstandSalah
         if (cancelled) return
         console.error(e)
         setEngineStatus('error')
-        const msg = e instanceof Error ? e.message : String(e)
-        setError(msg)
+        const raw = e instanceof Error ? e.message : String(e)
+        const hint =
+          /quota|storage|cache|private|blocked|network/i.test(raw)
+            ? ' If this is Safari private browsing or storage is full, try normal mode or tap Retry.'
+            : ''
+        setError(`${raw}${hint}`)
         setStatusDetail('Failed')
       }
     })()
@@ -141,7 +169,7 @@ export function useTransformersUnderstandSalah(): UseTransformersUnderstandSalah
     return () => {
       cancelled = true
     }
-  }, [])
+  }, [loadGeneration])
 
   const feedPcm16 = useCallback((buffer: ArrayBuffer) => {
     ringRef.current = appendPcmToRing(ringRef.current, buffer)
@@ -230,5 +258,6 @@ export function useTransformersUnderstandSalah(): UseTransformersUnderstandSalah
     startInferenceLoop,
     stopInferenceLoop,
     resetSessionText,
+    retryLoadingModels,
   }
 }

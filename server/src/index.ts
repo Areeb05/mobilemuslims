@@ -24,8 +24,9 @@ const io = new Server(server, {
 })
 
 // Middleware — allow browser fetches to Hugging Face Hub / LFS for offline Transformers.js models
+const cspDefaults = helmet.contentSecurityPolicy.getDefaultDirectives()
 const cspDirectives = {
-  ...helmet.contentSecurityPolicy.getDefaultDirectives(),
+  ...cspDefaults,
   connectSrc: [
     "'self'",
     'https://huggingface.co',
@@ -35,6 +36,9 @@ const cspDirectives = {
     'https://*.supabase.co',
     'wss://*.supabase.co',
   ],
+  // ORT / WebAssembly + AudioWorklet (offline Understand Salah on Safari/WebKit)
+  scriptSrc: [...(cspDefaults.scriptSrc ?? ["'self'"]), "'wasm-unsafe-eval'"],
+  workerSrc: ["'self'", 'blob:'],
 }
 app.use(
   helmet({
