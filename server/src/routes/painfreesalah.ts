@@ -77,6 +77,7 @@ router.post('/create-checkout', async (req, res) => {
       // One-time payment for lifetime access
       sessionConfig = {
         mode: 'payment',
+        allow_promotion_codes: true,
         line_items: [{
           price_data: {
             currency: 'usd',
@@ -100,6 +101,7 @@ router.post('/create-checkout', async (req, res) => {
       // Monthly subscription
       sessionConfig = {
         mode: 'subscription',
+        allow_promotion_codes: true,
         line_items: [{
           price_data: {
             currency: 'usd',
