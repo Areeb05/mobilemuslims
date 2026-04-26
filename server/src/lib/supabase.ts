@@ -1,4 +1,5 @@
 import { createClient } from '@supabase/supabase-js'
+import { getPublicAppOrigin } from './public-url.js'
 
 // Conditionally initialize Supabase
 export const supabaseAdmin = process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY
@@ -123,7 +124,7 @@ export const sendMagicLink = async (email: string): Promise<{ error: Error | nul
       type: 'magiclink',
       email,
       options: {
-        redirectTo: `${process.env.FRONTEND_URL || 'http://localhost:3000'}/painfreesalah/dashboard`,
+        redirectTo: `${getPublicAppOrigin()}/painfreesalah/dashboard`,
       },
     })
 

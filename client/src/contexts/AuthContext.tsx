@@ -95,10 +95,14 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
   // Sign in with magic link
   const signInWithMagicLink = async (email: string): Promise<{ error: Error | null }> => {
     try {
+      const origin = (
+        (typeof window !== 'undefined' && window.__PUBLIC_APP_ORIGIN__) ||
+        window.location.origin
+      ).replace(/\/$/, '')
       const { error } = await supabase.auth.signInWithOtp({
         email,
         options: {
-          emailRedirectTo: `${window.location.origin}/painfreesalah/dashboard`,
+          emailRedirectTo: `${origin}/painfreesalah/dashboard`,
         },
       })
 

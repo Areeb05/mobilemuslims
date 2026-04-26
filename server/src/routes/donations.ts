@@ -1,5 +1,6 @@
 import { Router } from 'express'
 import Stripe from 'stripe'
+import { getPublicAppOrigin } from '../lib/public-url.js'
 
 const router = Router()
 
@@ -9,18 +10,6 @@ if (process.env.STRIPE_SECRET_KEY) {
   stripe = new Stripe(process.env.STRIPE_SECRET_KEY)
 } else {
   console.warn('⚠️ STRIPE_SECRET_KEY not found - payment features disabled')
-}
-
-// Construct frontend URL from environment variables
-// Priority: FRONTEND_URL > RAILWAY_PUBLIC_DOMAIN > localhost fallback
-const getFrontendUrl = (): string => {
-  if (process.env.FRONTEND_URL) {
-    return process.env.FRONTEND_URL
-  }
-  if (process.env.RAILWAY_PUBLIC_DOMAIN) {
-    return `https://${process.env.RAILWAY_PUBLIC_DOMAIN}`
-  }
-  return 'http://localhost:3000'
 }
 
 // Note: Using inline price_data instead of predefined products for simplicity
@@ -71,8 +60,8 @@ router.post('/create-checkout-session', async (req, res) => {
           },
           quantity: 1,
         }],
-        success_url: `${getFrontendUrl()}/success?session_id={CHECKOUT_SESSION_ID}`,
-        cancel_url: `${getFrontendUrl()}/cancel`,
+        success_url: `${getPublicAppOrigin()}/success?session_id={CHECKOUT_SESSION_ID}`,
+        cancel_url: `${getPublicAppOrigin()}/cancel`,
         customer_email: email,
         metadata: {
           donation_type: 'one-time',
@@ -99,8 +88,8 @@ router.post('/create-checkout-session', async (req, res) => {
           },
           quantity: 1,
         }],
-        success_url: `${getFrontendUrl()}/success?session_id={CHECKOUT_SESSION_ID}`,
-        cancel_url: `${getFrontendUrl()}/cancel`,
+        success_url: `${getPublicAppOrigin()}/success?session_id={CHECKOUT_SESSION_ID}`,
+        cancel_url: `${getPublicAppOrigin()}/cancel`,
         customer_email: email,
         metadata: {
           donation_type: 'subscription',

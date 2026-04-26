@@ -1,6 +1,7 @@
 import { Router, Request, Response } from 'express'
 import Stripe from 'stripe'
 import { createUserWithSubscription } from '../lib/supabase.js'
+import { getPublicAppOrigin } from '../lib/public-url.js'
 
 const router = Router()
 
@@ -10,17 +11,6 @@ if (process.env.STRIPE_SECRET_KEY) {
   stripe = new Stripe(process.env.STRIPE_SECRET_KEY)
 } else {
   console.warn('⚠️ STRIPE_SECRET_KEY not found - PainFreeSalah payments disabled')
-}
-
-// Construct frontend URL from environment variables
-const getFrontendUrl = (): string => {
-  if (process.env.FRONTEND_URL) {
-    return process.env.FRONTEND_URL
-  }
-  if (process.env.RAILWAY_PUBLIC_DOMAIN) {
-    return `https://${process.env.RAILWAY_PUBLIC_DOMAIN}`
-  }
-  return 'http://localhost:3000'
 }
 
 // Pricing configuration
@@ -56,7 +46,7 @@ router.post('/create-checkout', async (req, res) => {
       return
     }
 
-    const frontendUrl = getFrontendUrl()
+    const frontendUrl = getPublicAppOrigin()
     
     // Store survey data in metadata for later use
     const metadata: Record<string, string> = {
@@ -272,7 +262,7 @@ router.post('/send-magic-link', async (req: Request, res: Response): Promise<voi
       type: 'magiclink',
       email,
       options: {
-        redirectTo: `${getFrontendUrl()}/painfreesalah/dashboard`,
+        redirectTo: `${getPublicAppOrigin()}/painfreesalah/dashboard`,
       },
     })
 

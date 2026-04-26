@@ -14,9 +14,6 @@ restartPolicyMaxRetries = 10
 
 # NODE_ENV must not live at environment root — Railway can apply it during Nixpacks install,
 # which makes npm ci skip devDependencies (tsc/vite missing → exit 127). Set production only on the start command.
-[environments.production]
-CLIENT_URL = "${{RAILWAY_STATIC_URL}}"
-
 [environments.production.deploy]
 startCommand = "cd server && NODE_ENV=production npm run start"
 

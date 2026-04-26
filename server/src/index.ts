@@ -8,8 +8,10 @@ import { createServer } from 'http'
 import { Server } from 'socket.io'
 import cors from 'cors'
 import helmet from 'helmet'
+import fs from 'fs'
 import path from 'path'
 import { fileURLToPath } from 'url'
+import { getPublicAppOrigin } from './lib/public-url.js'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
@@ -18,7 +20,7 @@ const app = express()
 const server = createServer(app)
 const io = new Server(server, {
   cors: {
-    origin: process.env.CLIENT_URL || 'http://localhost:3000',
+    origin: getPublicAppOrigin(),
     methods: ['GET', 'POST']
   }
 })
@@ -86,9 +88,24 @@ setupSocketHandlers(io)
 
 // Serve static files from client build (for production) — after API routes
 if (process.env.NODE_ENV === 'production') {
-  app.use(express.static(path.join(__dirname, '../../client/dist')))
+  const clientDistPath = path.join(__dirname, '../../client/dist')
+  const indexHtmlPath = path.join(clientDistPath, 'index.html')
+  let patchedIndexHtml: string | null = null
+  const getPatchedIndexHtml = (): string => {
+    if (!patchedIndexHtml) {
+      const raw = fs.readFileSync(indexHtmlPath, 'utf8')
+      const origin = JSON.stringify(getPublicAppOrigin())
+      patchedIndexHtml = raw.replace(
+        '<!--__PUBLIC_APP_ORIGIN__-->',
+        `<script>window.__PUBLIC_APP_ORIGIN__=${origin};</script>`
+      )
+    }
+    return patchedIndexHtml
+  }
+
+  app.use(express.static(clientDistPath, { index: false }))
   app.get('*', (_req, res) => {
-    res.sendFile(path.join(__dirname, '../../client/dist/index.html'))
+    res.type('html').send(getPatchedIndexHtml())
   })
 }
 
@@ -97,7 +114,7 @@ server.listen(PORT, () => {
   console.log(`🚀 API Server running on port ${PORT}`)
   console.log(`📡 WebSocket server ready`)
   console.log(`🌍 Environment: ${process.env.NODE_ENV || 'development'}`)
-  console.log(`🔗 Client URL: ${process.env.CLIENT_URL || 'http://localhost:3000'}`)
+  console.log(`🔗 Public app origin: ${getPublicAppOrigin()}`)
 })
 
 // Graceful shutdown
